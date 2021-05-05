@@ -1,0 +1,34 @@
+{
+  "name": "grafana-object-datasource",
+  "version": "1.0.0",
+  "description": "Modeling datasource for oganizaing your data",
+  "scripts": {
+    "build": "grafana-toolkit plugin:build",
+    "test": "grafana-toolkit plugin:test",
+    "dev": "grafana-toolkit plugin:dev",
+    "watch": "grafana-toolkit plugin:dev --watch",
+    "sign": "grafana-toolkit plugin:sign",
+    "start": "yarn watch"
+  },
+  "author": "Stephanie Closson",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@grafana/data": "7.4.2",
+    "@grafana/toolkit": "7.4.2",
+    "@grafana/runtime": "7.4.2",
+    "@grafana/ui": "7.4.2",
+    "@types/lodash": "4.14.168",
+    "@testing-library/react": "11.2.6",
+    "@testing-library/user-event": "13.1.1",
+    "ui-enterprise": "github:grafana/ui-enterprise"
+  },
+  "dependencies": {
+    "react-use": "^15.3.4"
+  },
+  "resolutions": {
+    "rxjs": "6.6.3"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/master/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "datasource",
+  "name": "object-datasource",
+  "id": "grafana-object-datasource",
+  "metrics": true,
+  "backend": true,
+  "executable": "gpx_object-datasource",
+  "info": {
+    "description": "Modeling datasource for oganizaing your data",
+    "author": {
+      "name": "Stephanie Closson",
+      "url": "https://gihub.com/srclosson"
+    },
+    "keywords": [
+      "model",
+      "object",
+      "datasource",
+      "generic"
+    ],
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "links": [
+      {
+        "name": "Website",
+        "url": "https://github.com/grafana/grafana-starter-datasource-backend"
+      },
+      {
+        "name": "License",
+        "url": "https://github.com/grafana/grafana-starter-datasource-backend/blob/master/LICENSE"
+      }
+    ],
+    "screenshots": [],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "dependencies": {
+    "grafanaDependency": ">=7.0.0",
+    "plugins": []
+  }
+}
