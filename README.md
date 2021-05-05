@@ -1,18 +1,32 @@
-# Grafana Data Source Backend Plugin Template
+# Object datasource
+## Vision
+1. Have you ever had users that didn't know the details about how to make a query for a datasource, but needed information from that datasource?
+2. Do you just want to provide your users a drop down showing a model? Much like a folder structure? 
 
-[![Build](https://github.com/grafana/grafana-starter-datasource-backend/workflows/CI/badge.svg)](https://github.com/grafana/grafana-datasource-backend/actions?query=workflow%3A%22CI%22)
+## What's it's going to do
+The object datasource will allow you to create a query in the datasource configuration, associating it with a location in a model. For example:
+- Site
+  - Equipment
+    - Trucks
+      - Engine
+        - Engine Speed
+          - Average: This might return the average truck speed for all equipment regardless of makeor model
+      - Make
+        - ID
+          - Engine
+            - Engine Speed: This would be a single query to a single piece of equipment
+    - Shovels
+    - Support Equipment
+  - IT Infrastructure
+    - Wifi
+      - Hotspots
+        - SNMP
+          - WAN
+            - BytesIn: This might be associated with a query for SNMP data to a mobile wifi hotspot out in the pit
+    - Routers
+    - Computers
 
-This template is a starting point for building Grafana Data Source Backend Plugins
-
-## What is Grafana Data Source Backend Plugin?
-
-Grafana supports a wide range of data sources, including Prometheus, MySQL, and even Datadog. There’s a good chance you can already visualize metrics from the systems you have set up. In some cases, though, you already have an in-house metrics solution that you’d like to add to your Grafana dashboards. Grafana Data Source Plugins enables integrating such solutions with Grafana.
-
-For more information about backend plugins, refer to the documentation on [Backend plugins](https://grafana.com/docs/grafana/latest/developers/plugins/backend/).
-
-## Getting started
-
-A data source backend plugin consists of both frontend and backend components.
+At any level, you can also decorate your data with more information. For example, perhaps you want to decorate the data for a particular `Make` with the number of active alerts for that equipment type? The object datasource should be able to provide the ability to associate a query for that data, with a level in the tree. Nodes further down in the tree, retain the meta data from queries at a higher level. 
 
 ### Frontend
 
