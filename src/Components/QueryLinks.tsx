@@ -63,7 +63,7 @@ export const QueryLinks = (props: Props) => {
                 key={index}
                 value={field}
                 onChange={(newField) => {
-                  console.log("we got an onChange in QueryLinks.tsx", newField);
+                  console.log('we got an onChange in QueryLinks.tsx', newField);
                   const newDataLinks = [...value];
                   newDataLinks.splice(index, 1, newField);
                   onChange(newDataLinks);
@@ -91,10 +91,9 @@ export const QueryLinks = (props: Props) => {
               margin-right: 10px;
             `}
             icon="plus"
-            onClick={(event) => {
+            onClick={async (event) => {
               event.preventDefault();
-              const newQueryLinks = [...(value || []), { name: '', query: '', datasourceUid: '' }];
-              onChange(newQueryLinks);
+              onChange([...(value || []), {}]);
             }}
           >
             Add

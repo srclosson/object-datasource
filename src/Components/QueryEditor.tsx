@@ -12,13 +12,10 @@ export class QueryEditor extends PureComponent<Props> {
     const { datasource, onChange, query } = this.props;
     console.log('query', query);
 
-    if (!query.refId) {
-      return <></>;
-    }
     return (
       <div className="gf-form">
         <Cascader
-          initialValue={query.queryLink?.name || ''}
+          initialValue={query.name}
           changeOnSelect
           displayAllSelectedLevels
           options={
@@ -30,10 +27,13 @@ export class QueryEditor extends PureComponent<Props> {
                 } as CascaderOption)
             ) || []
           }
-          onSelect={(e: any) => {
+          onSelect={(e: string) => {
+            console.log('e', e);
             const queryLink: QueryLinkConfig = e as QueryLinkConfig;
             console.log('selected', queryLink);
-            onChange({ ...query, queryLink });
+            if (queryLink.query) {
+              onChange({ ...query, config: queryLink });
+            }
           }}
         />
       </div>

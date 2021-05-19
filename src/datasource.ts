@@ -17,9 +17,4 @@ export class DataSource extends DataSourceWithBackend<ObjectQuery, ObjectDataSou
     console.log('calling callHealthCheck');
     return super.callHealthCheck();
   }
-
-  testDatasource(): Promise<any> {
-    console.log('calling testDatasource');
-    return super.testDatasource();
-  }
 }

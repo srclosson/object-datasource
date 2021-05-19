@@ -52,7 +52,6 @@ type State = {
 };
 
 export const QueryLink = (props: Props) => {
-  console.log('These are the props', props);
   const { value, onChange, onDelete, className } = props;
   const [state, setState] = useState<State>({
     queryString: value.query ? JSON.stringify(value.query) : '',
@@ -94,8 +93,7 @@ export const QueryLink = (props: Props) => {
       timeRange,
     };
 
-
-    if (datasource?.components?.QueryEditor) {
+    if (datasource?.components?.QueryEditor && query) {
       const QueryEditor = datasource.components.QueryEditor;
 
       return (
@@ -115,14 +113,25 @@ export const QueryLink = (props: Props) => {
     return <div>Data source plugin does not export any Query Editor component</div>;
   };
 
-  const loadDatasource = async (datasourceUid: string) => {
+  const loadDatasource = async (config?: QueryLinkConfig) => {
+    const { onChange } = props;
     const dataSourceSrv = getDataSourceSrv();
     let datasource: DataSourceApi;
 
-    try {
-      datasource = await dataSourceSrv.get(datasourceUid);
-    } catch (error) {
+    if (config?.uid) {
+      datasource = await dataSourceSrv.get(config.uid);
+    } else {
+      // Got the default datasource. Write out an onchange event
       datasource = await dataSourceSrv.get();
+      onChange({
+        name: '',
+        uid: datasource.uid,
+        query: {
+          refId: '',
+          datasource: datasource.name,
+          datasourceId: datasource.id,
+        },
+      });
     }
 
     setState({
@@ -132,12 +141,9 @@ export const QueryLink = (props: Props) => {
   };
 
   if (!state.datasource) {
-    loadDatasource(props.value.datasourceUid);
+    loadDatasource(props.value);
   }
 
-
-  
-  console.log("value is", value);
   return (
     <div className={className}>
       <div className={styles.firstRow + ' gf-form'}>
@@ -172,13 +178,20 @@ export const QueryLink = (props: Props) => {
             <DataSourcePicker
               // Uid and value should be always set in the db and so in the items.
               onChange={(ds) => {
+                console.log('new ds', ds);
                 onChange({
                   ...value,
-                  datasourceUid: ds.uid,
+                  uid: ds.uid,
+                  query: {
+                    ...value.query,
+                    refId: value.name || '',
+                    datasourceId: ds.id,
+                    datasource: ds.name,
+                  },
                 });
-                loadDatasource(ds.uid);
+                loadDatasource(ds);
               }}
-              current={value.datasourceUid}
+              current={value.uid}
             />
           }
           className={css`
@@ -188,9 +201,7 @@ export const QueryLink = (props: Props) => {
       </div>
       <div className={styles.editor}>
         <div className="query-editor-row">
-          <div className="gf-form-group">
-            {renderPluginEditor()}
-          </div>
+          <div className="gf-form-group">{renderPluginEditor()}</div>
         </div>
       </div>
       <div className={styles.row}></div>
