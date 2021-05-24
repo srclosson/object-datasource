@@ -2,8 +2,7 @@ import React, { PureComponent } from 'react';
 import { QueryEditorProps } from '@grafana/data';
 import { DataSource } from '../datasource';
 import { ObjectDataSourceOptions, ObjectQuery, QueryLinkConfig } from '../types';
-import { Cascader } from 'ui-enterprise';
-import { CascaderOption } from '@grafana/ui';
+import { CascaderOption, Cascader } from '@grafana/ui';
 
 type Props = QueryEditorProps<DataSource, ObjectQuery, ObjectDataSourceOptions>;
 

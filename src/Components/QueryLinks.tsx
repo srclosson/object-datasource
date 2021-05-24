@@ -29,7 +29,7 @@ export const QueryLinks = (props: Props) => {
     fetch('/api/datasources').then(async (resp: Response) => {
       const restDS = (await resp.json()) as any[];
       const newDS: DataSourceInstanceSettings[] = restDS.map((ds) => {
-        return ({
+        return {
           name: ds.name,
           value: ds.type,
           meta: {
@@ -41,7 +41,7 @@ export const QueryLinks = (props: Props) => {
             },
           },
           sort: '',
-        } as unknown) as DataSourceInstanceSettings;
+        } as unknown as DataSourceInstanceSettings;
       });
 
       setDatasources(newDS);

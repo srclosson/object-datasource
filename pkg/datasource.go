@@ -33,22 +33,29 @@ func newDatasource() datasource.ServeOpts {
 	}
 }
 
-// SampleDatasource is an example datasource used to scaffold
+// ObjectDatasource backend
 // new datasource plugins with an backend.
 type ObjectDatasource struct {
 	// The instance manager can help with lifecycle management
 	// of datasource instances in plugins. It's not a requirements
 	// but a best practice that we recommend that you follow.
-	im       instancemgmt.InstanceManager
+	im instancemgmt.InstanceManager
+
 	settings *models.Settings
 }
 
 func (d *ObjectDatasource) getInstance(ctx context.Context, pluginCtx backend.PluginContext) (*instanceSettings, error) {
+	backend.Logger.Debug("New datasource instance comming right up!!!", "pluginCtx", pluginCtx.DataSourceInstanceSettings)
+
 	s, err := d.im.Get(pluginCtx)
-	instance := s.(*instanceSettings)
 	if err != nil {
+		backend.Logger.Debug("Apparently we have an error here?", "error", err)
 		return nil, err
 	}
+	instance := s.(*instanceSettings)
+
+	backend.Logger.Debug("Appaarently we have some settings here?", "settings", s)
+
 	return instance, nil
 }
 
@@ -62,7 +69,7 @@ func (d *ObjectDatasource) QueryData(ctx context.Context, req *backend.QueryData
 	// create response struct
 	response := backend.NewQueryDataResponse()
 	instance, err := d.getInstance(ctx, req.PluginContext)
-	if err != nil {
+	if err != nil || instance == nil {
 		return nil, err
 	}
 
@@ -80,20 +87,36 @@ func (d *ObjectDatasource) QueryData(ctx context.Context, req *backend.QueryData
 
 func (td *ObjectDatasource) query(ctx context.Context, instance *instanceSettings, query backend.DataQuery) backend.DataResponse {
 	// Unmarshal the json into our queryModel
-	var q models.ObjectDataQuery
+	var innerQuery models.ObjectDataQuery
 
 	response := backend.DataResponse{}
 
-	response.Error = json.Unmarshal(query.JSON, &q)
+	response.Error = json.Unmarshal(query.JSON, &innerQuery)
+
 	if response.Error != nil {
 		return response
 	}
 
-	backend.Logger.Debug("!!! Got a query !!!", "query", q.Config.Query, "instance", instance.settings)
-	// create data frame response
-	frame := data.NewFrame("response")
+	innerQuery.Config.Query["intervalMs"] = query.Interval.Milliseconds()
+	innerQuery.Config.Query["maxDataPoints"] = query.MaxDataPoints
 
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/ds/query?orgId=1", instance.settings.URL), bytes.NewBuffer(q.Config.Query))
+	rawInnerQuery, err := json.Marshal(innerQuery.Config.Query)
+
+	proxiedRequest := models.ProxiedDataRequest{
+		From:    fmt.Sprintf("%d", query.TimeRange.From.UnixNano()/int64(time.Millisecond)),
+		To:      fmt.Sprintf("%d", query.TimeRange.To.UnixNano()/int64(time.Millisecond)),
+		Queries: []json.RawMessage{rawInnerQuery},
+	}
+
+	proxiedRequestJSON, err := json.Marshal(proxiedRequest)
+	if err != nil {
+		response.Error = err
+		return response
+	}
+
+	backend.Logger.Debug("!!! Got a query !!!", "proxiedRequestJSON", string(proxiedRequestJSON))
+
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/tsdb/query", instance.settings.URL), bytes.NewBuffer([]byte(proxiedRequestJSON)))
 	if err != nil {
 		response.Error = err
 		return response
@@ -101,8 +124,7 @@ func (td *ObjectDatasource) query(ctx context.Context, instance *instanceSetting
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Grafana-Org-Id", "1")
-	req.Header.Set("Authorization", "Bearer eyJrIjoiVTJtQXZKd3c4ajZ4MjFUU08zbWVVMFFPaG9jZ1RXamUiLCJuIjoiTXlLZXkiLCJpZCI6MX0=")
+	req.Header.Set("Authorization", "Bearer eyJrIjoiNE1KZXB1bGVWRDRpdU9lVWNITVNZTFpXSzExQmppZG0iLCJuIjoiT2JqZWN0RGF0YXNvdXJjZSIsImlkIjoxfQ==")
 	resp, err := instance.httpClient.Do(req)
 	if err != nil {
 		response.Error = err
@@ -110,25 +132,37 @@ func (td *ObjectDatasource) query(ctx context.Context, instance *instanceSetting
 	}
 
 	defer resp.Body.Close() //nolint
-	body, err := ioutil.ReadAll(resp.Body)
+	proxiedResponseJSON, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		response.Error = err
 		return response
 	}
-	backend.Logger.Debug(">>>>>>>>>>> Query Body Response <<<<<<<<<<<<<<<", "body", body)
 
-	// add the time dimension
-	frame.Fields = append(frame.Fields,
-		data.NewField("time", nil, []time.Time{query.TimeRange.From, query.TimeRange.To}),
-	)
+	var proxiedResponse models.ProxiedResponse
+	err = json.Unmarshal(proxiedResponseJSON, &proxiedResponse)
 
-	// add values
-	frame.Fields = append(frame.Fields,
-		data.NewField("values", nil, []int64{10, 20}),
-	)
+	backend.Logger.Debug("proxied response", "json", len(proxiedResponse.Responses))
 
-	// add the frames to the response
-	response.Frames = append(response.Frames, frame)
+	if err != nil {
+		response.Error = err
+		return response
+	}
+
+	for _, dataResponse := range proxiedResponse.Responses {
+
+		frames, err := data.UnmarshalArrowFrames(dataResponse.DataFrames)
+		if err != nil {
+			response.Error = err
+			return response
+		}
+		for _, f := range frames {
+			for _, field := range f.Fields {
+				backend.Logger.Debug("Frames", "frames", f.Name, "field", field.Name, "length", field.At(1))
+			}
+		}
+
+		response.Frames = append(response.Frames, frames...)
+	}
 
 	return response
 }
@@ -173,7 +207,7 @@ func (d *ObjectDatasource) CheckHealth(ctx context.Context, req *backend.CheckHe
 
 	hreq.Header.Set("Accept", "application/json")
 	hreq.Header.Set("Content-Type", "application/json")
-	hreq.Header.Set("Authorization", "Bearer eyJrIjoiVTJtQXZKd3c4ajZ4MjFUU08zbWVVMFFPaG9jZ1RXamUiLCJuIjoiTXlLZXkiLCJpZCI6MX0=")
+	hreq.Header.Set("Authorization", "Bearer eyJrIjoiNE1KZXB1bGVWRDRpdU9lVWNITVNZTFpXSzExQmppZG0iLCJuIjoiT2JqZWN0RGF0YXNvdXJjZSIsImlkIjoxfQ==")
 	resp, err := instance.httpClient.Do(hreq)
 	if err != nil {
 		return nil, err
@@ -201,10 +235,11 @@ type instanceSettings struct {
 }
 
 func newDataSourceInstance(rawSettings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
+	settings, err := models.LoadSettings(rawSettings)
 	return &instanceSettings{
 		httpClient: &http.Client{},
-		settings:   nil,
-	}, nil
+		settings:   settings,
+	}, err
 }
 
 func (s *instanceSettings) Dispose() {

@@ -10,11 +10,6 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 )
 
-type TimeRange struct {
-	From int64 `json:"from"`
-	To   int64 `json:"to"`
-}
-
 type QueryLinkConfigBase struct {
 	Name string  `json:"name,omitempty"`
 	UID  string  `json:"uid,omitempty"`
@@ -26,16 +21,10 @@ type SettingsIn struct {
 	QueryLinks []map[string]interface{} `json:"queryLinks,omitempty"`
 }
 
-type MetricRequest struct {
-	From    string            `json:"from"`
-	To      string            `json:"to"`
-	Queries []json.RawMessage `json:"queries"`
-}
-
 // Settings - all filled from
 type Settings struct {
 	backend.DataSourceInstanceSettings
-	Request       MetricRequest
+	Request       ProxiedDataRequest
 	Authorization string
 }
 
@@ -58,9 +47,9 @@ func LoadSettings(config backend.DataSourceInstanceSettings) (*Settings, error) 
 	settings.BasicAuthEnabled = config.BasicAuthEnabled
 	settings.BasicAuthUser = config.BasicAuthUser
 
-	settings.Request = MetricRequest{
-		From:    fmt.Sprintf("%d", time.Now().Add(-1*time.Duration(10)*time.Minute).UnixNano()),
-		To:      fmt.Sprintf("%d", time.Now().UnixNano()),
+	settings.Request = ProxiedDataRequest{
+		From:    fmt.Sprintf("%d", time.Now().Add(-1*time.Duration(10)*time.Minute).UnixNano()/int64(time.Millisecond)),
+		To:      fmt.Sprintf("%d", time.Now().UnixNano()/int64(time.Millisecond)),
 		Queries: make([]json.RawMessage, 0),
 	}
 
