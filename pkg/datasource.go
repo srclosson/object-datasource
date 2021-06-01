@@ -13,7 +13,6 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend/datasource"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
-	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/srclosson/object-datasource/pkg/models"
 )
 
@@ -76,11 +75,46 @@ func (d *ObjectDatasource) QueryData(ctx context.Context, req *backend.QueryData
 	// loop over queries and execute them individually.
 	for _, q := range req.Queries {
 		res := d.query(ctx, instance, q)
+		
 
 		// save the response in a hashmap
 		// based on with RefID as identifier
 		response.Responses[q.RefID] = res
 	}
+	// proxiedRequestJSON, err := json.Marshal(*req)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// backend.Logger.Debug("!!! Got a query !!!", "proxiedRequestJSON", string(proxiedRequestJSON))
+
+	// proxiedRequest, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/ds/query", instance.settings.URL), bytes.NewBuffer([]byte(proxiedRequestJSON)))
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// proxiedRequest.Header.Set("Accept", "application/json")
+	// proxiedRequest.Header.Set("Content-Type", "application/json")
+	// proxiedRequest.Header.Set("Authorization", "Bearer eyJrIjoiNE1KZXB1bGVWRDRpdU9lVWNITVNZTFpXSzExQmppZG0iLCJuIjoiT2JqZWN0RGF0YXNvdXJjZSIsImlkIjoxfQ==")
+	// proxiedResponse, err := instance.httpClient.Do(proxiedRequest)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// defer proxiedResponse.Body.Close() //nolint
+	// proxiedResponseJSON, err := ioutil.ReadAll(proxiedResponse.Body)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// var response backend.QueryDataResponse
+	// err = json.Unmarshal(proxiedResponseJSON, &response)
+
+	// backend.Logger.Debug("proxied response", "json", len(response.Responses))
+
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return response, nil
 }
@@ -99,6 +133,8 @@ func (td *ObjectDatasource) query(ctx context.Context, instance *instanceSetting
 
 	innerQuery.Config.Query["intervalMs"] = query.Interval.Milliseconds()
 	innerQuery.Config.Query["maxDataPoints"] = query.MaxDataPoints
+	innerQuery.Config.Query["refId"] = innerQuery.Name
+	innerQuery.Config.Query["limit"] = query.MaxDataPoints
 
 	rawInnerQuery, err := json.Marshal(innerQuery.Config.Query)
 
@@ -116,7 +152,7 @@ func (td *ObjectDatasource) query(ctx context.Context, instance *instanceSetting
 
 	backend.Logger.Debug("!!! Got a query !!!", "proxiedRequestJSON", string(proxiedRequestJSON))
 
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/tsdb/query", instance.settings.URL), bytes.NewBuffer([]byte(proxiedRequestJSON)))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/ds/query", instance.settings.URL), bytes.NewBuffer([]byte(proxiedRequestJSON)))
 	if err != nil {
 		response.Error = err
 		return response
@@ -149,19 +185,7 @@ func (td *ObjectDatasource) query(ctx context.Context, instance *instanceSetting
 	}
 
 	for _, dataResponse := range proxiedResponse.Responses {
-
-		frames, err := data.UnmarshalArrowFrames(dataResponse.DataFrames)
-		if err != nil {
-			response.Error = err
-			return response
-		}
-		for _, f := range frames {
-			for _, field := range f.Fields {
-				backend.Logger.Debug("Frames", "frames", f.Name, "field", field.Name, "length", field.At(1))
-			}
-		}
-
-		response.Frames = append(response.Frames, frames...)
+		response.Frames = append(response.Frames, dataResponse.Frames...)
 	}
 
 	return response

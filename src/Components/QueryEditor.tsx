@@ -7,6 +7,19 @@ import { CascaderOption, Cascader } from '@grafana/ui';
 type Props = QueryEditorProps<DataSource, ObjectQuery, ObjectDataSourceOptions>;
 
 export class QueryEditor extends PureComponent<Props> {
+  getOptions = (): CascaderOption[] => {
+    const { datasource } = this.props;
+    return (
+      datasource.instanceSettings.jsonData.queryLinks?.map(
+        (q: QueryLinkConfig) =>
+          ({
+            value: q.name,
+            label: q.name,
+          } as CascaderOption)
+      ) || []
+    );
+  };
+
   render() {
     const { datasource, onChange, query } = this.props;
     console.log('query', query);
@@ -17,22 +30,12 @@ export class QueryEditor extends PureComponent<Props> {
           initialValue={query.name}
           changeOnSelect
           displayAllSelectedLevels
-          options={
-            datasource.instanceSettings.jsonData.queryLinks?.map(
-              (q: QueryLinkConfig) =>
-                ({
-                  value: q.name,
-                  label: q.name,
-                } as CascaderOption)
-            ) || []
-          }
+          options={this.getOptions()}
           onSelect={(e: string) => {
-            console.log('e', e);
             const queryLink: QueryLinkConfig | undefined = datasource.instanceSettings.jsonData.queryLinks?.find(
               (ql: QueryLinkConfig) => ql.name && e === ql.name
             );
             if (queryLink && queryLink.query && queryLink.name) {
-              console.log('changing. Using queryLink', queryLink);
               onChange({ ...query, name: queryLink.name, config: queryLink });
             }
           }}

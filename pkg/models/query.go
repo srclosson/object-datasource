@@ -1,5 +1,8 @@
 package models
 
+import (
+	"github.com/grafana/grafana-plugin-sdk-go/data"
+)
 // QueryLinkConfig ...
 type QueryLinkConfig struct {
 	Name  string                 `json:"name"`
@@ -21,6 +24,10 @@ type ProxiedResponse struct {
 type ProxiedResponses map[string]ProxiedDataResponse
 
 type ProxiedDataResponse struct {
+	Frames []*data.Frame `json:"frames"`
+}
+
+type ProxiedTimeSeriesDataResponse struct {
 	RefID      string   `json:"refId"`
 	Series     [][]byte `json:"series,omitempty"`
 	Tabes      [][]byte `json:"tables,omitempty"`

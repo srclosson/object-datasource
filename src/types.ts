@@ -31,3 +31,5 @@ export interface ConfigDataQuery extends DataQuery {
 export interface QueryLinkConfig extends QueryLink {
   query?: ConfigDataQuery;
 }
+
+export interface ObjectPanelType {}
