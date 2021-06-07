@@ -12,7 +12,7 @@ import {
 import { Button, LegacyForms, stylesFactory } from '@grafana/ui';
 import { getLegacyAngularInjector, getDataSourceSrv } from '@grafana/runtime';
 const { FormField } = LegacyForms;
-import { QueryLinkConfig } from '../types';
+import { QueryLink } from '../types';
 import { DataSourcePicker } from 'ui-enterprise';
 
 const getStyles = stylesFactory(() => ({
@@ -37,9 +37,9 @@ const getStyles = stylesFactory(() => ({
 }));
 
 type Props = {
-  value: QueryLinkConfig;
+  value: QueryLink;
   datasources?: Array<DataSourceInstanceSettings<DataSourceJsonData>>;
-  onChange: (value: QueryLinkConfig) => void;
+  onChange: (value: QueryLink) => void;
   onDelete: () => void;
   suggestions: VariableSuggestion[];
   className?: string;
@@ -51,7 +51,7 @@ type State = {
   query: DataQuery;
 };
 
-export const QueryLink = (props: Props) => {
+export const QueryLinkEditor = (props: Props) => {
   const { value, onChange, onDelete, className } = props;
   const [state, setState] = useState<State>({
     queryString: value.query ? JSON.stringify(value.query) : '',
@@ -113,13 +113,13 @@ export const QueryLink = (props: Props) => {
     return <div>Data source plugin does not export any Query Editor component</div>;
   };
 
-  const loadDatasource = async (config?: QueryLinkConfig) => {
+  const loadDatasource = async (uid?: string) => {
     const { onChange } = props;
     const dataSourceSrv = getDataSourceSrv();
     let datasource: DataSourceApi;
 
-    if (config?.uid) {
-      datasource = await dataSourceSrv.get(config.uid);
+    if (uid) {
+      datasource = await dataSourceSrv.get(uid);
     } else {
       // Got the default datasource. Write out an onchange event
       datasource = await dataSourceSrv.get();
@@ -128,8 +128,6 @@ export const QueryLink = (props: Props) => {
         uid: datasource.uid,
         query: {
           refId: '',
-          datasource: datasource.name,
-          datasourceId: datasource.id,
         },
       });
     }
@@ -141,7 +139,7 @@ export const QueryLink = (props: Props) => {
   };
 
   if (!state.datasource) {
-    loadDatasource(props.value);
+    loadDatasource(props.value.uid);
   }
 
   return (
@@ -185,11 +183,10 @@ export const QueryLink = (props: Props) => {
                   query: {
                     ...value.query,
                     refId: value.name || '',
-                    datasourceId: ds.id,
                     datasource: ds.name,
                   },
                 });
-                loadDatasource(ds);
+                loadDatasource(ds.uid);
               }}
               current={value.uid}
             />

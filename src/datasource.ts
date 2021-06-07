@@ -59,11 +59,11 @@ export class DataSource extends DataSourceWithBackend<ObjectQuery, ObjectDataSou
       .then((mapping) => {
         request.targets.forEach((target) => {
           if (!target.hide && target.config.uid && target.config.query) {
-            if (isBackendPlugin(mapping[target.config.uid].datasource.meta)) {
-              mapping[target.config.uid].request.targets.push(target);
-            } else {
-              mapping[target.config.uid].request.targets.push(target.config.query);
-            }
+            //if (isBackendPlugin(mapping[target.config.uid].datasource.meta)) {
+            //  mapping[target.config.uid].request.targets.push(target);
+            //} else {
+            mapping[target.config.uid].request.targets.push(target.config.query);
+            //}
           }
         });
         return mapping;
@@ -71,18 +71,18 @@ export class DataSource extends DataSourceWithBackend<ObjectQuery, ObjectDataSou
       .then((populatedMapping) => {
         const results: Array<Promise<DataQueryResponse>> = [];
         Object.values(populatedMapping).forEach((entry) => {
-          if (isObjectQueryRequest(entry.request)) {
-            results.push(super.query(entry.request).toPromise());
-          } else {
-            if (entry.datasource) {
-              const result = entry.datasource.query(entry.request);
-              if (isPromise(result)) {
-                results.push(result);
-              } else {
-                results.push(result.toPromise());
-              }
+          // if (isObjectQueryRequest(entry.request)) {
+          //   results.push(super.query(entry.request).toPromise());
+          // } else {
+          if (entry.datasource) {
+            const result = entry.datasource.query(entry.request);
+            if (isPromise(result)) {
+              results.push(result);
+            } else {
+              results.push(result.toPromise());
             }
           }
+          //}
         });
         return results;
       })

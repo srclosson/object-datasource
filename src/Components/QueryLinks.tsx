@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { css } from 'emotion';
 import { Button, stylesFactory, useTheme } from '@grafana/ui';
 import { GrafanaTheme, VariableOrigin, DataLinkBuiltInVars, DataSourceInstanceSettings } from '@grafana/data';
-import { QueryLinkConfig } from '../types';
-import { QueryLink } from './QueryLink';
+import { QueryLink } from '../types';
+import { QueryLinkEditor } from './QueryLink';
 
 const getStyles = stylesFactory((theme: GrafanaTheme) => ({
   infoText: css`
@@ -16,8 +16,8 @@ const getStyles = stylesFactory((theme: GrafanaTheme) => ({
 }));
 
 type Props = {
-  value?: QueryLinkConfig[];
-  onChange: (value: QueryLinkConfig[]) => void;
+  value?: QueryLink[];
+  onChange: (value: QueryLink[]) => void;
 };
 export const QueryLinks = (props: Props) => {
   const { value, onChange } = props;
@@ -58,7 +58,7 @@ export const QueryLinks = (props: Props) => {
         {value &&
           value.map((field, index) => {
             return (
-              <QueryLink
+              <QueryLinkEditor
                 className={styles.dataLink}
                 key={index}
                 value={field}
@@ -93,7 +93,14 @@ export const QueryLinks = (props: Props) => {
             icon="plus"
             onClick={async (event) => {
               event.preventDefault();
-              onChange([...(value || []), {}]);
+              onChange([
+                ...(value || []),
+                {
+                  query: {
+                    refId: '',
+                  },
+                },
+              ]);
             }}
           >
             Add

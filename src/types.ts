@@ -2,14 +2,14 @@ import { DataQuery, DataSourceJsonData } from '@grafana/data';
 
 export interface ObjectQuery extends DataQuery {
   name: string;
-  config: QueryLinkConfig;
+  config: QueryLink;
 }
 
 /**
  * These are options configured for each DataSource instance
  */
 export interface ObjectDataSourceOptions extends DataSourceJsonData {
-  queryLinks?: QueryLinkConfig[];
+  queryLinks?: QueryLink[];
 }
 
 /**
@@ -22,14 +22,7 @@ export interface ObjectSecureJsonData {
 export interface QueryLink {
   name?: string;
   uid?: string;
-}
-
-export interface ConfigDataQuery extends DataQuery {
-  datasourceId: number;
-}
-
-export interface QueryLinkConfig extends QueryLink {
-  query?: ConfigDataQuery;
+  query: DataQuery;
 }
 
 export interface ObjectPanelType {}
