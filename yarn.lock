@@ -931,6 +931,20 @@
   resolved "https://registry.yarnpkg.com/@grafana/aws-sdk/-/aws-sdk-0.0.3.tgz#bc632c6c77971a5474acbe45847420503679fc75"
   integrity sha512-V0PJLk+oU1C33knurXp8BkT5N2ctDu9b21zpK16vkJAs5aOiH/OaOhQ/IP9ipxYhB+b9PFjr8RXagV/8XJ8xwg==
 
+"@grafana/data@7.5.3":
+  version "7.5.3"
+  resolved "https://registry.yarnpkg.com/@grafana/data/-/data-7.5.3.tgz#e7f1abaf405e5904c6b3204770cd95bf0e6d061c"
+  integrity sha512-QZfCeEHU86ItQhRsLfglBfTzZ2U980CDJwalG2ofwknoTYonU2pRUNoHpbBDW2NAw7lAO+FxDCWzMCcCwcW24Q==
+  dependencies:
+    "@braintree/sanitize-url" "4.0.0"
+    "@types/d3-interpolate" "^1.3.1"
+    apache-arrow "0.16.0"
+    eventemitter3 "4.0.7"
+    lodash "4.17.21"
+    marked "2.0.1"
+    rxjs "6.6.3"
+    xss "1.0.6"
+
 "@grafana/data@7.5.5":
   version "7.5.5"
   resolved "https://registry.yarnpkg.com/@grafana/data/-/data-7.5.5.tgz#4009d7d1e8e91080a9031048703be280a6cfffce"
@@ -958,6 +972,17 @@
     marked "2.0.1"
     rxjs "6.6.3"
     xss "1.0.6"
+
+"@grafana/e2e-selectors@7.5.3":
+  version "7.5.3"
+  resolved "https://registry.yarnpkg.com/@grafana/e2e-selectors/-/e2e-selectors-7.5.3.tgz#96ce69ed88589899e5a1270b3aeac04e5cdb4021"
+  integrity sha512-GMZ6qS1oSkBnD210+HV5oNuwZ9Pt6/hhbe8RBR2px9Eb9KiX3OwfzcJ/iWTTZN4AqhYxjAj6pZVPZGF/7+fApQ==
+  dependencies:
+    "@grafana/tsconfig" "^1.0.0-rc1"
+    commander "5.0.0"
+    execa "4.0.0"
+    typescript "4.1.2"
+    yaml "^1.8.3"
 
 "@grafana/e2e-selectors@7.5.5":
   version "7.5.5"
@@ -1217,6 +1242,65 @@
   version "1.0.0-rc1"
   resolved "https://registry.yarnpkg.com/@grafana/tsconfig/-/tsconfig-1.0.0-rc1.tgz#d07ea16755a50cae21000113f30546b61647a200"
   integrity sha512-nucKPGyzlSKYSiJk5RA8GzMdVWhdYNdF+Hh65AXxjD9PlY69JKr5wANj8bVdQboag6dgg0BFKqgKPyY+YtV4Iw==
+
+"@grafana/ui@7.5.3":
+  version "7.5.3"
+  resolved "https://registry.yarnpkg.com/@grafana/ui/-/ui-7.5.3.tgz#7f224308effadae995752259bdbf0646c5c6e9ca"
+  integrity sha512-Ff0EZs4URk19QLZx1bHZ951NehsrzUszASbtD90ENqJyyOP8MAapb3OcOmDA4L3hEBuGM45vp2P4HhPZcsD0Uw==
+  dependencies:
+    "@emotion/core" "10.0.27"
+    "@grafana/aws-sdk" "0.0.3"
+    "@grafana/data" "7.5.3"
+    "@grafana/e2e-selectors" "7.5.3"
+    "@grafana/slate-react" "0.22.9-grafana"
+    "@grafana/tsconfig" "^1.0.0-rc1"
+    "@iconscout/react-unicons" "1.1.4"
+    "@popperjs/core" "2.5.4"
+    "@sentry/browser" "5.25.0"
+    "@testing-library/jest-dom" "5.11.9"
+    "@torkelo/react-select" "3.0.8"
+    "@types/hoist-non-react-statics" "3.3.1"
+    "@types/react-beautiful-dnd" "12.1.2"
+    "@types/react-color" "3.0.1"
+    "@types/react-select" "3.0.8"
+    "@types/react-table" "7.0.12"
+    "@types/slate" "0.47.1"
+    "@types/slate-react" "0.22.5"
+    "@visx/event" "1.3.0"
+    "@visx/gradient" "1.0.0"
+    "@visx/scale" "1.4.0"
+    "@visx/shape" "1.4.0"
+    "@visx/tooltip" "1.3.0"
+    classnames "2.2.6"
+    d3 "5.15.0"
+    emotion "10.0.27"
+    hoist-non-react-statics "3.3.2"
+    immutable "3.8.2"
+    jquery "3.5.1"
+    lodash "4.17.21"
+    moment "2.24.0"
+    monaco-editor "0.20.0"
+    papaparse "5.3.0"
+    rc-cascader "1.0.1"
+    rc-drawer "3.1.3"
+    rc-slider "9.6.4"
+    rc-time-picker "^3.7.3"
+    react "17.0.1"
+    react-beautiful-dnd "13.0.0"
+    react-calendar "2.19.2"
+    react-color "2.18.0"
+    react-custom-scrollbars "4.2.1"
+    react-dom "17.0.1"
+    react-highlight-words "0.16.0"
+    react-hook-form "5.1.3"
+    react-monaco-editor "0.36.0"
+    react-popper "2.2.4"
+    react-storybook-addon-props-combinations "1.1.0"
+    react-table "7.0.0"
+    react-transition-group "4.4.1"
+    slate "0.47.8"
+    tinycolor2 "1.4.1"
+    uplot "1.6.7"
 
 "@grafana/ui@7.5.5":
   version "7.5.5"
@@ -12353,7 +12437,7 @@ uglify-js@3.4.x:
     "@grafana/runtime" "^7.4.1"
     "@grafana/toolkit" "^7.4.1"
     "@grafana/tsconfig" "^1.0.0-rc1"
-    "@grafana/ui" "^7.5.3"
+    "@grafana/ui" "^7.4.1"
     "@types/chance" "^1.1.0"
     "@types/memoize-one" "^5.1.2"
     "@types/react-calendar" "^3.1.2"
@@ -12365,7 +12449,6 @@ uglify-js@3.4.x:
     react-calendar "^3.2.1"
     react-dom "^16.14.0"
     react-use "^15.3.4"
-    semver "^7.3.5"
     typescript "4.0.2"
 
 unbox-primitive@^1.0.0:
@@ -12462,6 +12545,11 @@ upath@^1.1.1:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/upath/-/upath-1.2.0.tgz#8f66dbcd55a883acdae4408af8b035a5044c1894"
   integrity sha512-aZwGpamFO61g3OlfT7OQCHqhGnW43ieH9WZeP7QxN/G/jS4jfqUkZxoryvJgVPEcrl5NL/ggHsSmLMHuH64Lhg==
+
+uplot@1.6.7:
+  version "1.6.7"
+  resolved "https://registry.yarnpkg.com/uplot/-/uplot-1.6.7.tgz#d3faaec899791ee3fdf5d2835b19a33d9117566a"
+  integrity sha512-6aYZmGywrHTqTgT1GfYHnU77xDUdutR1EJbVX4P9I45CGrtXN77S69/cgW2BXPL1lR4g6V6bh7ujJsFyvHw1hg==
 
 uplot@1.6.8:
   version "1.6.8"

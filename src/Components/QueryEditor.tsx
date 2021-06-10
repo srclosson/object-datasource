@@ -3,6 +3,13 @@ import { QueryEditorProps } from '@grafana/data';
 import { DataSource } from '../datasource';
 import { ObjectDataSourceOptions, ObjectQuery, QueryLink } from '../types';
 import { CascaderOption, Cascader } from '@grafana/ui';
+import { css } from 'emotion';
+
+const styles = {
+  full: css`
+    width: 100% !important;
+  `,
+};
 
 type Props = QueryEditorProps<DataSource, ObjectQuery, ObjectDataSourceOptions>;
 
@@ -18,7 +25,6 @@ export class QueryEditor extends PureComponent<Props> {
           const splitName = q.name.split('.');
           for (let i = 0; i < splitName.length; i++) {
             // If the node is already here, don't add it again.
-            console.log('node', node);
             const existingNodeIndex = node.findIndex((e) => e.label === splitName[i]);
 
             if (existingNodeIndex >= 0) {
@@ -55,17 +61,20 @@ export class QueryEditor extends PureComponent<Props> {
 
   render() {
     const { datasource, onChange, onRunQuery, query } = this.props;
-    console.log('query', query);
+    const tree = this.buildTree();
+    const name = query.name.split('.');
 
     return (
-      <div className="gf-form">
+      <div className={styles.full}>
         <Cascader
-          initialValue={query.name}
+          key={query.name}
+          initialValue={name[name.length - 1]}
           separator="."
-          changeOnSelect
-          displayAllSelectedLevels
-          options={this.buildTree()}
+          changeOnSelect={false}
+          displayAllSelectedLevels={true}
+          options={tree}
           onSelect={(e: string) => {
+            console.log('we got e', e);
             if (!query.name || query.name === '') {
               query.name = e;
             } else {
