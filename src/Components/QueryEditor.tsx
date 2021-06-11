@@ -30,13 +30,15 @@ export class QueryEditor extends PureComponent<Props> {
             if (existingNodeIndex >= 0) {
               node = node[existingNodeIndex].items!;
             } else {
-              const newItems: CascaderOption[] = [];
-              node.push({
+              const newNode: CascaderOption = {
                 label: splitName[i],
-                value: splitName[i],
-                items: newItems,
-              });
-              node = newItems;
+                value: [...splitName.slice(0, i), splitName[i]].join('.'), //q,
+              };
+              node.push(newNode);
+              if (i < splitName.length - 1) {
+                newNode.items = [];
+                node = newNode.items;
+              }
             }
           }
           node = tree;
@@ -46,43 +48,20 @@ export class QueryEditor extends PureComponent<Props> {
     return tree;
   };
 
-  getOptions = (): CascaderOption[] => {
-    const { datasource } = this.props;
-    return (
-      datasource.instanceSettings.jsonData.queryLinks?.map(
-        (q: QueryLink) =>
-          ({
-            value: q.name,
-            label: q.name,
-          } as CascaderOption)
-      ) || []
-    );
-  };
-
   render() {
     const { datasource, onChange, onRunQuery, query } = this.props;
-    const tree = this.buildTree();
-    const name = query.name.split('.');
-
+    console.log(query);
     return (
       <div className={styles.full}>
         <Cascader
-          key={query.name}
-          initialValue={name[name.length - 1]}
+          initialValue={query.name}
           separator="."
-          changeOnSelect={false}
+          changeOnSelect={true}
           displayAllSelectedLevels={true}
-          options={tree}
+          options={this.buildTree()}
           onSelect={(e: string) => {
-            console.log('we got e', e);
-            if (!query.name || query.name === '') {
-              query.name = e;
-            } else {
-              query.name += '.' + e;
-            }
-
             const queryLink: QueryLink | undefined = datasource.instanceSettings.jsonData.queryLinks?.find(
-              (ql: QueryLink) => ql.name && query.name === ql.name
+              (ql: QueryLink) => ql.name && e === ql.name
             );
             if (queryLink && queryLink.query && queryLink.name) {
               onChange({ ...query, name: queryLink.name, config: queryLink });

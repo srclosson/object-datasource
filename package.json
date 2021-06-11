@@ -13,13 +13,14 @@
   "author": "Stephanie Closson",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@grafana/data": "7.5.5",
-    "@grafana/toolkit": "7.5.5",
-    "@grafana/runtime": "7.5.5",
-    "@grafana/ui": "7.5.3",
+    "@grafana/data": "8.0.0",
+    "@grafana/toolkit": "8.0.0",
+    "@grafana/runtime": "8.0.0",
+    "@grafana/ui": "8.0.0",
     "@types/lodash": "4.14.168",
     "@testing-library/react": "11.2.6",
     "@testing-library/user-event": "13.1.1",
+    "tslib": "2.2.0",
     "ui-enterprise": "github:grafana/ui-enterprise"
   },
   "dependencies": {
