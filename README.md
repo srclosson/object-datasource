@@ -12,10 +12,11 @@ Query consumers (those who are knowledgable about how to use and interpret the d
 
 ## What does it look like?
 Query creators write queries in the datasource config like so:
+![Query Config](https://github.com/srclosson/object-datasource/blob/main/src/img/query_editor_testdatadb.png?raw=true "Query configuration")
 
 
 Query consumers access the data through a tree like heirarchy like so:
-
+![Query Selection](https://github.com/srclosson/object-datasource/blob/main/src/img/query_editor_selection.png?raw=true "Query selection")
 
 ### Frontend
 
