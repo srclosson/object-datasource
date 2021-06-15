@@ -13,6 +13,7 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend/datasource"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/srclosson/object-datasource/pkg/models"
 )
 
@@ -74,12 +75,48 @@ func (d *ObjectDatasource) QueryData(ctx context.Context, req *backend.QueryData
 
 	// loop over queries and execute them individually.
 	for _, q := range req.Queries {
-		res := d.query(ctx, instance, q)
-		
+		//res := d.query(ctx, instance, q)
 
+		var objectQuery models.ObjectDataQuery
+		err := json.Unmarshal(q.JSON, &objectQuery)
+		backend.Logger.Debug("objectQuery", "query", objectQuery)
 		// save the response in a hashmap
 		// based on with RefID as identifier
-		response.Responses[q.RefID] = res
+		frames := make([]*data.Frame, 0)
+		for _, frameIn := range objectQuery.Response.Data {
+			fields := make([]*data.Field, 0)
+			for _, fieldIn := range frameIn.Fields {
+				backend.Logger.Debug("The labels are", "labels", fieldIn.Labels, "type", fieldIn.TypeInfo.Frame)
+				var field *data.Field
+				switch fieldIn.TypeInfo.Frame {
+				case "time.Time":
+					field = data.NewField(fieldIn.Name, fieldIn.Labels, make([]time.Time, 0))
+				default:
+					field = data.NewField(fieldIn.Name, fieldIn.Labels, make([]float64, 0))
+				}
+
+				//field.Config = fieldIn.State
+				for _, value := range fieldIn.Values {
+					switch fieldIn.TypeInfo.Frame {
+					case "time.Time":
+						v := int64(value.(float64))
+						backend.Logger.Debug("timestamp", "orig", v, "secs", v/1000, "msecs", v%1000)
+						field.Append(time.Unix(v/1000, (v%1000)*1000000))
+					default:
+						field.Append(value.(float64))
+					}
+				}
+				fields = append(fields, field)
+			}
+			frames = append(frames, &data.Frame{
+				Name:   frameIn.Name,
+				Fields: fields,
+			})
+		}
+		response.Responses[q.RefID] = backend.DataResponse{
+			Frames: frames,
+			Error:  err,
+		}
 	}
 	// proxiedRequestJSON, err := json.Marshal(*req)
 	// if err != nil {

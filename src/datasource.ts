@@ -2,12 +2,14 @@ import {
   DataSourceInstanceSettings,
   DataQueryRequest,
   DataQueryResponse,
+  DataQueryResponseData,
   PanelPlugin,
   DataQuery,
   DataSourceJsonData,
   DataSourceApi,
   DataSourcePluginMeta,
   KeyValue,
+  DataFrame,
 } from '@grafana/data';
 import { DataSourceWithBackend, getDataSourceSrv, HealthCheckResult } from '@grafana/runtime';
 import { ObjectDataSourceOptions, ObjectQuery, ObjectPanelType } from './types';
@@ -62,7 +64,10 @@ export class DataSource extends DataSourceWithBackend<ObjectQuery, ObjectDataSou
             //if (isBackendPlugin(mapping[target.config.uid].datasource.meta)) {
             //  mapping[target.config.uid].request.targets.push(target);
             //} else {
-            mapping[target.config.uid].request.targets.push(target.config.query);
+            mapping[target.config.uid].request.targets.push({
+              ...target.config.query,
+              refId: target.refId,
+            });
             //}
           }
         });
@@ -86,7 +91,20 @@ export class DataSource extends DataSourceWithBackend<ObjectQuery, ObjectDataSou
         });
         return results;
       })
-      .then((results) => Promise.all(results));
+      .then((results) => Promise.all(results))
+      .then((results) => {
+        request.targets.forEach((target) => {
+          const match = results.find((result: DataQueryResponse) =>
+            result.data.find((d: DataFrame) => d.refId === target.refId)
+          );
+          if (match) {
+            target.response = match;
+          }
+          console.log('target', target);
+        });
+        //return super.query(request);
+        return results;
+      });
 
     return from(resultPromise).pipe(mergeAll());
   }

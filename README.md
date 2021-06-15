@@ -3,28 +3,13 @@
 1. Have you ever had users that didn't know the details about how to make a query for a datasource, but needed information from that datasource?
 2. Do you just want to provide your users a drop down showing a model? Much like a folder structure? 
 
-## What's it's going to do
-The object datasource will allow you to create a query in the datasource configuration, associating it with a location in a model. For example:
-- Site
-  - Equipment
-    - Trucks
-      - Engine
-        - Engine Speed
-          - Average: This might return the average truck speed for all equipment regardless of makeor model
-      - Make
-        - ID
-          - Engine
-            - Engine Speed: This would be a single query to a single piece of equipment
-    - Shovels
-    - Support Equipment
-  - IT Infrastructure
-    - Wifi
-      - Hotspots
-        - SNMP
-          - WAN
-            - BytesIn: This might be associated with a query for SNMP data to a mobile wifi hotspot out in the pit
-    - Routers
-    - Computers
+## What it does
+
+The object datasource tries to solve the problem that query writers sometimes don't understand the data, and query consumers sometimes don't understand the query language. 
+
+The object datasource allows query writers to write queries, and place them in a heirarechy that data consumers can use. 
+
+
 
 At any level, you can also decorate your data with more information. For example, perhaps you want to decorate the data for a particular `Make` with the number of active alerts for that equipment type? The object datasource should be able to provide the ability to associate a query for that data, with a level in the tree. Nodes further down in the tree, retain the meta data from queries at a higher level. 
 

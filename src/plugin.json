@@ -5,6 +5,7 @@
   "id": "grafana-object-datasource",
   "metrics": true,
   "backend": true,
+  "alerting": true,
   "executable": "gpx_object-datasource",
   "info": {
     "description": "Modeling datasource for oganizaing your data",

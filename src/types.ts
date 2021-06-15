@@ -1,8 +1,9 @@
-import { DataQuery, DataSourceJsonData } from '@grafana/data';
+import { DataQuery, DataQueryResponse, DataSourceJsonData } from '@grafana/data';
 
 export interface ObjectQuery extends DataQuery {
   name: string;
   config: QueryLink;
+  response: DataQueryResponse;
 }
 
 /**
