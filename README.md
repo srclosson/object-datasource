@@ -3,15 +3,20 @@
 1. Have you ever had users that didn't know the details about how to make a query for a datasource, but needed information from that datasource?
 2. Do you just want to provide your users a drop down showing a model? Much like a folder structure? 
 
-## What it does
+## What does it do?
+The object datasource tries to solve the problem between query creators (those knowledgable about the a query language) and query consumers (those knowledgable about the data a query produces)
+Ideally, everyone interacting with data is knowledgable as both a query creator, and query consumer, but this is often not the case.
 
-The object datasource tries to solve the problem that query writers sometimes don't understand the data, and query consumers sometimes don't understand the query language. 
+The object datasource allows query creators to create meaningful queryies, and associate them in a heiarchy that can be accessed by query consumers. 
+Query consumers (those who are knowledgable about how to use and interpret the data) then have much easier access to the data they need to be successful.
 
-The object datasource allows query writers to write queries, and place them in a heirarechy that data consumers can use. 
+## What does it look like?
+Query creators write queries in the datasource config like so:
+![Query Config](https://github.com/srclosson/object-datasource/blob/main/src/img/query_editor_testdatadb.png?raw=true "Query configuration")
 
 
-
-At any level, you can also decorate your data with more information. For example, perhaps you want to decorate the data for a particular `Make` with the number of active alerts for that equipment type? The object datasource should be able to provide the ability to associate a query for that data, with a level in the tree. Nodes further down in the tree, retain the meta data from queries at a higher level. 
+Query consumers access the data through a tree like heirarchy like so:
+![Query Selection](https://github.com/srclosson/object-datasource/blob/main/src/img/query_editor_selection.png?raw=true "Query selection")
 
 ### Frontend
 
