@@ -33,7 +33,7 @@ __webpack_public_path__ =
 `,
 });
 
-const config = async (env: any): Promise<Configuration> => {
+const config = async (env): Promise<Configuration> => {
   const baseConfig: Configuration = {
     cache: {
       type: 'filesystem',

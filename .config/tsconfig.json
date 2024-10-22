@@ -17,8 +17,7 @@
     "compilerOptions": {
       "module": "commonjs",
       "target": "es5",
-      "esModuleInterop": true,
-      "noImplicitAny": false
+      "esModuleInterop": true
     },
     "transpileOnly": true
   },

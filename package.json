@@ -14,7 +14,6 @@
     "lint:fix": "yarn run lint --fix",
     "server": "docker compose up --build"
   },
-  "type": "module",
   "author": "Stephanie Closson",
   "license": "Apache-2.0",
   "devDependencies": {
