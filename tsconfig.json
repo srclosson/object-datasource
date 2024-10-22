@@ -1,10 +1,7 @@
 {
-  "extends": "./node_modules/@grafana/toolkit/src/config/tsconfig.plugin.json",
-  "include": ["src", "types", "./types.d.ts"],
+  "extends": "./.config/tsconfig.json",
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.spec.ts", "src/**/*.spec.tsx"],
   "compilerOptions": {
-    "rootDir": "./src",
-    "baseUrl": "./src",
-    "typeRoots": ["./node_modules/@types"],
-    "noImplicitAny": false,
+    "typeRoots": ["./node_modules/@types", "./../../node_modules/@types"]
   }
 }

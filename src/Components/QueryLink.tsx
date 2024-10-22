@@ -9,11 +9,10 @@ import {
   DataQuery,
   LoadingState,
 } from '@grafana/data';
-import { Button, LegacyForms, stylesFactory } from '@grafana/ui';
+import { Button, LegacyForms, stylesFactory, DataSourcePicker } from '@grafana/ui';
 import { getLegacyAngularInjector, getDataSourceSrv } from '@grafana/runtime';
 const { FormField } = LegacyForms;
 import { QueryLink } from '../types';
-import { DataSourcePicker } from 'ui-enterprise';
 
 const getStyles = stylesFactory(() => ({
   firstRow: css`
