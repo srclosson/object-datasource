@@ -9,6 +9,8 @@ export interface ObjectQuery extends DataQuery {
   linkId?: string;
   /** The link's path in the tree, for display and for links saved before they had ids */
   name?: string;
+  /** Values of the dashboard variables the link's query uses, filled in when the query runs */
+  variables?: Record<string, string | string[]>;
 }
 
 /**

@@ -78,6 +78,7 @@ func (d *Datasource) query(ctx context.Context, orgID int64, q backend.DataQuery
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusBadRequest, err.Error())
 	}
+	interpolate(model, oq.Variables, link.Datasource().Type)
 	res, err := d.grafana.query(ctx, orgID, model, q.TimeRange)
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusBadGateway, err.Error())

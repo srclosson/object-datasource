@@ -1,113 +1,65 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { css } from '@emotion/css';
-import { Button, stylesFactory, useTheme } from '@grafana/ui';
-import { GrafanaTheme, VariableOrigin, DataLinkBuiltInVars, DataSourceInstanceSettings } from '@grafana/data';
+import { Button, useStyles2 } from '@grafana/ui';
+import { GrafanaTheme2 } from '@grafana/data';
 import { QueryLink, newLinkId } from '../types';
 import { QueryLinkEditor } from './QueryLink';
 
-const getStyles = stylesFactory((theme: GrafanaTheme) => ({
+const getStyles = (theme: GrafanaTheme2) => ({
   infoText: css`
-    padding-bottom: ${theme.spacing.md};
-    color: ${theme.colors.textWeak};
+    padding-bottom: ${theme.spacing(2)};
+    color: ${theme.colors.text.secondary};
   `,
   dataLink: css`
-    margin-bottom: ${theme.spacing.sm};
+    margin-bottom: ${theme.spacing(2)};
   `,
-}));
+});
 
 type Props = {
   value?: QueryLink[];
   onChange: (value: QueryLink[]) => void;
 };
-export const QueryLinks = (props: Props) => {
-  const { value, onChange } = props;
-  const [datasources, setDatasources] = useState<DataSourceInstanceSettings[]>([]);
-  const theme = useTheme();
-  const styles = getStyles(theme);
 
-  if (!datasources?.length) {
-    fetch('/api/datasources').then(async (resp: Response) => {
-      const restDS = (await resp.json()) as any[];
-      const newDS: DataSourceInstanceSettings[] = restDS.map((ds) => {
-        return {
-          name: ds.name,
-          value: ds.type,
-          meta: {
-            id: ds.id,
-            info: {
-              logos: {
-                small: ds.typeLogoUrl,
-              },
-            },
-          },
-          sort: '',
-        } as unknown as DataSourceInstanceSettings;
-      });
-
-      setDatasources(newDS);
-    });
-  }
+export const QueryLinks = ({ value = [], onChange }: Props) => {
+  const styles = useStyles2(getStyles);
 
   return (
     <>
       <h3 className="page-heading">Query links</h3>
 
-      <div className={styles.infoText}>Add queries for exisitng datasources</div>
+      <div className={styles.infoText}>
+        Add queries for existing datasources. Dots in a name place it in the tree, like folders.
+      </div>
 
       <div className="gf-form-group">
-        {value &&
-          value.map((field, index) => {
-            return (
-              <QueryLinkEditor
-                className={styles.dataLink}
-                key={index}
-                value={field}
-                onChange={(newField) => {
-                  console.log('we got an onChange in QueryLinks.tsx', newField);
-                  const newDataLinks = [...value];
-                  // Links saved before they had ids get one the first time they're edited
-                  newDataLinks.splice(index, 1, { ...newField, id: newField.id ?? newLinkId() });
-                  onChange(newDataLinks);
-                }}
-                onDelete={() => {
-                  const newDataLinks = [...value];
-                  newDataLinks.splice(index, 1);
-                  onChange(newDataLinks);
-                }}
-                suggestions={[
-                  {
-                    value: DataLinkBuiltInVars.valueRaw,
-                    label: 'Raw value',
-                    documentation: 'Raw value of the field',
-                    origin: VariableOrigin.Value,
-                  },
-                ]}
-              />
-            );
-          })}
-        <div>
-          <Button
-            variant={'secondary'}
-            className={css`
-              margin-right: 10px;
-            `}
-            icon="plus"
-            onClick={async (event) => {
-              event.preventDefault();
-              onChange([
-                ...(value || []),
-                {
-                  id: newLinkId(),
-                  query: {
-                    refId: '',
-                  },
-                },
-              ]);
+        {value.map((link, index) => (
+          <QueryLinkEditor
+            className={styles.dataLink}
+            key={link.id ?? index}
+            value={link}
+            onChange={(newLink) => {
+              const links = [...value];
+              // Links saved before they had ids get one the first time they're edited
+              links.splice(index, 1, { ...newLink, id: newLink.id ?? newLinkId() });
+              onChange(links);
             }}
-          >
-            Add
-          </Button>
-        </div>
+            onDelete={() => {
+              const links = [...value];
+              links.splice(index, 1);
+              onChange(links);
+            }}
+          />
+        ))}
+        <Button
+          variant="secondary"
+          icon="plus"
+          onClick={(event) => {
+            event.preventDefault();
+            onChange([...value, { id: newLinkId(), query: { refId: '' } }]);
+          }}
+        >
+          Add
+        </Button>
       </div>
     </>
   );

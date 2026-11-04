@@ -1,167 +1,112 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { css } from '@emotion/css';
 import {
-  VariableSuggestion,
-  DataSourceInstanceSettings,
-  DataSourceJsonData,
   DataSourceApi,
-  PanelData,
-  DataQuery,
+  DataSourceInstanceSettings,
+  GrafanaTheme2,
   LoadingState,
+  PanelData,
   getDefaultTimeRange,
 } from '@grafana/data';
-import { Button, LegacyForms, stylesFactory } from '@grafana/ui';
-import { getDataSourceSrv, DataSourcePicker } from '@grafana/runtime';
-const { FormField } = LegacyForms;
+import { DataQuery } from '@grafana/schema';
+import { Button, InlineField, Input, useStyles2 } from '@grafana/ui';
+import { DataSourcePicker, getDataSourceSrv } from '@grafana/runtime';
 import { QueryLink } from '../types';
 
-const getStyles = stylesFactory(() => ({
-  firstRow: css`
-    display: flex;
-  `,
-  nameField: css`
-    flex: 2;
-  `,
-  regexField: css`
-    flex: 3;
-  `,
+const getStyles = (theme: GrafanaTheme2) => ({
   row: css`
     display: flex;
-    align-items: baseline;
+    gap: ${theme.spacing(1)};
+    align-items: flex-start;
   `,
   editor: css`
     display: flex;
     flex-direction: column;
-    height: 100%;
+    padding: ${theme.spacing(1, 0)};
   `,
-}));
+});
 
 type Props = {
   value: QueryLink;
-  datasources?: Array<DataSourceInstanceSettings<DataSourceJsonData>>;
   onChange: (value: QueryLink) => void;
   onDelete: () => void;
-  suggestions: VariableSuggestion[];
   className?: string;
 };
 
-type State = {
-  queryString: string;
-  datasource: DataSourceApi | null;
-  query: DataQuery;
-};
+export const QueryLinkEditor = ({ value, onChange, onDelete, className }: Props) => {
+  const styles = useStyles2(getStyles);
+  const [datasource, setDatasource] = useState<DataSourceApi>();
 
-export const QueryLinkEditor = (props: Props) => {
-  const { value, onChange, onDelete, className } = props;
-  const [state, setState] = useState<State>({
-    queryString: value.query ? JSON.stringify(value.query) : '',
-    datasource: null,
-    query: {
-      refId: '',
-    },
-  });
+  // A new link starts on the default datasource
+  useEffect(() => {
+    if (!value.uid) {
+      const ds = getDataSourceSrv().getInstanceSettings(null);
+      if (ds) {
+        onChange({ ...value, uid: ds.uid, query: { refId: '', datasource: { uid: ds.uid, type: ds.type } } });
+      }
+    }
+    // Only for links without a datasource; onChange and value change on every edit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value.uid]);
 
-  const styles = getStyles();
-
-  const handleChange = (field: keyof typeof value) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    onChange({
-      ...value,
-      [field]: event.currentTarget.value,
-    });
-  };
-
-  const onQueryChange = (query: any) => {
-    console.log('We just got a query', query);
-    onChange({
-      ...props.value,
-      query,
-    });
-  };
-
-  const onRunQuery = () => {
-    console.log('We just got an onRunQuery event');
-  };
-
-  const renderPluginEditor = () => {
-    const { value } = props;
-    const { query } = value;
-    const { datasource } = state;
-    const timeRange = getDefaultTimeRange();
-    const data: PanelData = {
-      state: LoadingState.NotStarted,
-      series: [],
-      timeRange,
+  useEffect(() => {
+    let cancelled = false;
+    if (value.uid) {
+      getDataSourceSrv()
+        .get(value.uid)
+        .then((ds) => !cancelled && setDatasource(ds))
+        .catch(() => !cancelled && setDatasource(undefined));
+    }
+    return () => {
+      cancelled = true;
     };
+  }, [value.uid]);
 
-    if (datasource?.components?.QueryEditor && query) {
-      const QueryEditor = datasource.components.QueryEditor;
+  const data: PanelData = useMemo(
+    () => ({ state: LoadingState.NotStarted, series: [], timeRange: getDefaultTimeRange() }),
+    []
+  );
 
-      return (
-        <QueryEditor
-          key={datasource?.name}
-          query={query}
-          datasource={datasource}
-          onChange={onQueryChange}
-          onRunQuery={onRunQuery}
-          data={data}
-          range={timeRange}
-          queries={[query]}
-        />
-      );
+  const renderQueryEditor = () => {
+    if (!datasource) {
+      return null;
     }
-
-    return <div>Data source plugin does not export any Query Editor component</div>;
-  };
-
-  const loadDatasource = async (uid?: string) => {
-    const { onChange } = props;
-    const dataSourceSrv = getDataSourceSrv();
-    let datasource: DataSourceApi;
-
-    if (uid) {
-      datasource = await dataSourceSrv.get(uid);
-    } else {
-      // Got the default datasource. Write out an onchange event
-      datasource = await dataSourceSrv.get();
-      onChange({
-        ...props.value,
-        uid: datasource.uid,
-        query: {
-          refId: '',
-          datasource: { uid: datasource.uid, type: datasource.type },
-        },
-      });
+    const QueryEditor = datasource.components?.QueryEditor;
+    if (!QueryEditor) {
+      return <div>Data source plugin does not export any Query Editor component</div>;
     }
-
-    setState({
-      ...state,
-      datasource,
-    });
+    return (
+      <QueryEditor
+        key={datasource.uid}
+        query={value.query}
+        datasource={datasource}
+        onChange={(query: DataQuery) => onChange({ ...value, query })}
+        onRunQuery={() => {}}
+        data={data}
+        range={data.timeRange}
+        queries={[value.query]}
+      />
+    );
   };
-
-  if (!state.datasource) {
-    loadDatasource(props.value.uid);
-  }
 
   return (
     <div className={className}>
-      <div className={styles.firstRow + ' gf-form'}>
-        <FormField
-          className={styles.nameField}
-          labelWidth={6}
-          // A bit of a hack to prevent using default value for the width from FormField
-          inputWidth={null}
+      <div className={styles.row}>
+        <InlineField
           label="Name"
-          type="text"
-          value={value.name}
-          tooltip={
-            'Think of this a a folder name. Columns in the query returned will be underneath this name as the folder name'
-          }
-          onChange={handleChange('name')}
-        />
+          labelWidth={12}
+          grow
+          tooltip="Where the link appears in the tree. Dots separate folders, e.g. plant.line1.temperature"
+        >
+          <Input
+            value={value.name ?? ''}
+            placeholder="folder.subfolder.name"
+            onChange={(e) => onChange({ ...value, name: e.currentTarget.value })}
+          />
+        </InlineField>
         <Button
-          variant={'destructive'}
-          title="Remove field"
+          variant="destructive"
+          title="Remove query link"
           icon="times"
           onClick={(event) => {
             event.preventDefault();
@@ -169,40 +114,19 @@ export const QueryLinkEditor = (props: Props) => {
           }}
         />
       </div>
-      <div className="gf-form">
-        <FormField
-          label={'Datasource'}
-          labelWidth={6}
-          inputEl={
-            <DataSourcePicker
-              // Uid and value should be always set in the db and so in the items.
-              onChange={(ds: DataSourceInstanceSettings) => {
-                console.log('new ds', ds);
-                onChange({
-                  ...value,
-                  uid: ds.uid,
-                  query: {
-                    ...value.query,
-                    refId: value.name || '',
-                    datasource: { uid: ds.uid, type: ds.type },
-                  },
-                });
-                loadDatasource(ds.uid);
-              }}
-              current={value.uid}
-            />
+      <InlineField label="Datasource" labelWidth={12}>
+        <DataSourcePicker
+          current={value.uid}
+          onChange={(ds: DataSourceInstanceSettings) =>
+            onChange({
+              ...value,
+              uid: ds.uid,
+              query: { ...value.query, datasource: { uid: ds.uid, type: ds.type } },
+            })
           }
-          className={css`
-            width: 100%;
-          `}
         />
-      </div>
-      <div className={styles.editor}>
-        <div className="query-editor-row">
-          <div className="gf-form-group">{renderPluginEditor()}</div>
-        </div>
-      </div>
-      <div className={styles.row}></div>
+      </InlineField>
+      <div className={styles.editor}>{renderQueryEditor()}</div>
     </div>
   );
 };
