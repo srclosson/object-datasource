@@ -49,10 +49,17 @@ export const ConfigEditor = ({ options, onOptionsChange }: Props) => {
       </Field>
       <QueryLinks
         value={jsonData.queryLinks || []}
+        folders={jsonData.folders}
         onChange={(queryLinks) =>
           onOptionsChange({
             ...options,
             jsonData: { ...jsonData, queryLinks },
+          })
+        }
+        onFoldersChange={(folders) =>
+          onOptionsChange({
+            ...options,
+            jsonData: { ...jsonData, folders },
           })
         }
       />

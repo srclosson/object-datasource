@@ -24,6 +24,7 @@ var (
 type Datasource struct {
 	settings *models.Settings
 	grafana  grafanaAPI
+	lookups  lookupCache
 }
 
 // NewDatasource creates a datasource instance. Grafana creates a new one whenever the
@@ -86,6 +87,9 @@ func (d *Datasource) query(ctx context.Context, orgID int64, q backend.DataQuery
 	for _, f := range res.Frames {
 		f.RefID = q.RefID
 	}
+	md := d.settings.MetadataFor(link)
+	tables, errs := d.labelTables(ctx, orgID, md.LabelLookups, oq.Variables, q.TimeRange)
+	decorate(res.Frames, link.Name, md, tables, errs)
 	return res
 }
 
@@ -125,20 +129,37 @@ func (d *Datasource) CheckHealth(ctx context.Context, req *backend.CheckHealthRe
 		return fail(apiError(status, raw).Error())
 	}
 
+	// Every datasource the links and label lookups query, with what to call it in a message
+	type target struct {
+		what string
+		ds   models.DataSourceRef
+	}
+	var targets []target
 	for _, link := range d.settings.QueryLinks {
-		ds := link.Datasource()
-		if ds.UID == "" {
-			return fail(fmt.Sprintf("query link %q has no datasource", link.Name))
+		targets = append(targets, target{fmt.Sprintf("query link %q", link.Name), link.Datasource()})
+		for i, l := range link.Metadata.LabelLookups {
+			targets = append(targets, target{fmt.Sprintf("label lookup %d of %q", i+1, link.Name), l.Datasource()})
 		}
-		status, raw, err := d.grafana.do(ctx, orgID, http.MethodGet, "/api/datasources/uid/"+url.PathEscape(ds.UID), nil)
+	}
+	for path, md := range d.settings.Folders {
+		for i, l := range md.LabelLookups {
+			targets = append(targets, target{fmt.Sprintf("label lookup %d of folder %q", i+1, path), l.Datasource()})
+		}
+	}
+
+	for _, t := range targets {
+		if t.ds.UID == "" {
+			return fail(t.what + " has no datasource")
+		}
+		status, raw, err := d.grafana.do(ctx, orgID, http.MethodGet, "/api/datasources/uid/"+url.PathEscape(t.ds.UID), nil)
 		if err != nil {
 			return fail(err.Error())
 		}
 		if status == http.StatusNotFound {
-			return fail(fmt.Sprintf("query link %q targets a datasource that doesn't exist (uid %s)", link.Name, ds.UID))
+			return fail(fmt.Sprintf("%s targets a datasource that doesn't exist (uid %s)", t.what, t.ds.UID))
 		}
 		if status != http.StatusOK {
-			return fail(fmt.Sprintf("query link %q: %v", link.Name, apiError(status, raw)))
+			return fail(fmt.Sprintf("%s: %v", t.what, apiError(status, raw)))
 		}
 	}
 

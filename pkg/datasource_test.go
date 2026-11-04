@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -51,11 +52,35 @@ func newFakeGrafana(t *testing.T) *fakeGrafana {
 			res := backend.NewQueryDataResponse()
 			for _, q := range body["queries"].([]any) {
 				refID := q.(map[string]any)["refId"].(string)
-				res.Responses[refID] = backend.DataResponse{Frames: data.Frames{
-					data.NewFrame("up",
+				// A query with a "table" answers with that table, as a SQL datasource would;
+				// one with "series" answers with a series per label set, as Prometheus would
+				if table, ok := q.(map[string]any)["table"].(map[string]any); ok {
+					f := data.NewFrame("table")
+					for _, col := range sortedKeys(table) {
+						var vals []string
+						for _, v := range table[col].([]any) {
+							vals = append(vals, v.(string))
+						}
+						f.Fields = append(f.Fields, data.NewField(col, nil, vals))
+					}
+					res.Responses[refID] = backend.DataResponse{Frames: data.Frames{f}}
+					continue
+				}
+				var frames data.Frames
+				series, _ := q.(map[string]any)["series"].([]any)
+				if series == nil {
+					series = []any{map[string]any{}}
+				}
+				for _, l := range series {
+					labels := data.Labels{}
+					for k, v := range l.(map[string]any) {
+						labels[k] = v.(string)
+					}
+					frames = append(frames, data.NewFrame("up",
 						data.NewField("time", nil, []time.Time{time.UnixMilli(1000)}),
-						data.NewField("value", nil, []float64{1})),
-				}}
+						data.NewField("value", labels, []float64{1})))
+				}
+				res.Responses[refID] = backend.DataResponse{Frames: frames}
 			}
 			_ = json.NewEncoder(w).Encode(res)
 		case r.URL.Path == "/api/datasources":
@@ -81,6 +106,15 @@ const testLinks = `{"queryLinks": [
 	{"name": "plant.line2.temp", "uid": "prom", "query": {"expr": "temp{line=\"2\"}"}},
 	{"id": "gone", "name": "plant.gone", "uid": "missing", "query": {}}
 ]}`
+
+func sortedKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 func newTestDatasource(t *testing.T, url, token, jsonData string) *Datasource {
 	t.Helper()

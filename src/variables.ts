@@ -5,6 +5,18 @@ import { ObjectQuery, QueryLink } from './types';
 // $name, ${name}, ${name:format}, [[name]] and [[name:format]], as Grafana writes them
 const variablePattern = /\$(\w+)|\$\{(\w+)(?::\w+)?\}|\[\[(\w+)(?::\w+)?\]\]/g;
 
+/** The dashboard variables a query uses, leaving out Grafana's built-ins such as $__interval */
+export const variableNames = (query: unknown): string[] => {
+  const names = new Set<string>();
+  for (const m of JSON.stringify(query ?? {}).matchAll(variablePattern)) {
+    const name = m[1] ?? m[2] ?? m[3];
+    if (!name.startsWith('__')) {
+      names.add(name);
+    }
+  }
+  return [...names];
+};
+
 export const findLink = (links: QueryLink[] | undefined, query: ObjectQuery): QueryLink | undefined =>
   links?.find((l) => query.linkId && l.id === query.linkId) ?? links?.find((l) => query.name && l.name === query.name);
 

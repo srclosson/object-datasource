@@ -17,26 +17,33 @@ type DataSourceRef struct {
 // QueryLink is a query written once by someone who knows the target datasource, and given a
 // place in the tree by its dot-separated name
 type QueryLink struct {
-	ID    string          `json:"id,omitempty"`
-	Name  string          `json:"name,omitempty"`
-	UID   string          `json:"uid,omitempty"`
-	Query json.RawMessage `json:"query,omitempty"`
+	ID       string          `json:"id,omitempty"`
+	Name     string          `json:"name,omitempty"`
+	UID      string          `json:"uid,omitempty"`
+	Query    json.RawMessage `json:"query,omitempty"`
+	Metadata Metadata        `json:"metadata,omitempty"`
 }
 
-// Datasource is the target datasource, taken from the link's query and falling back to its uid
+// Datasource is the target datasource
 func (l QueryLink) Datasource() DataSourceRef {
+	return datasourceOf(l.Query, l.UID)
+}
+
+// datasourceOf is the datasource a query names, falling back to uid
+func datasourceOf(query json.RawMessage, uid string) DataSourceRef {
 	var q struct {
 		Datasource *DataSourceRef `json:"datasource"`
 	}
-	_ = json.Unmarshal(l.Query, &q)
+	_ = json.Unmarshal(query, &q)
 	if q.Datasource != nil && q.Datasource.UID != "" {
 		return *q.Datasource
 	}
-	return DataSourceRef{UID: l.UID}
+	return DataSourceRef{UID: uid}
 }
 
 type jsonData struct {
-	QueryLinks []QueryLink `json:"queryLinks,omitempty"`
+	QueryLinks []QueryLink         `json:"queryLinks,omitempty"`
+	Folders    map[string]Metadata `json:"folders,omitempty"`
 }
 
 // Settings are the datasource instance's settings
@@ -48,6 +55,8 @@ type Settings struct {
 	// hasn't given the plugin a managed service account.
 	ServiceAccountToken string
 	QueryLinks          []QueryLink
+	// Folders is the metadata of folders in the tree, by path
+	Folders map[string]Metadata
 }
 
 // LoadSettings reads Settings from the datasource configuration
@@ -62,6 +71,7 @@ func LoadSettings(config backend.DataSourceInstanceSettings) (*Settings, error) 
 		GrafanaURL:          strings.TrimRight(strings.TrimSpace(config.URL), "/"),
 		ServiceAccountToken: strings.TrimSpace(config.DecryptedSecureJSONData["serviceAccountToken"]),
 		QueryLinks:          jd.QueryLinks,
+		Folders:             jd.Folders,
 	}, nil
 }
 

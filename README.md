@@ -39,6 +39,31 @@ what its links return. Give the service account only the datasources the links n
 Dashboard variables in a link's query (`$var`, `${var:format}`) are filled in from the dashboard.
 Alert rules have no dashboard variables, so links used in alerts shouldn't depend on them.
 
+## Metadata
+
+Folders and query links carry metadata that decorates their data: a description, unit, display
+name, min/max, thresholds, labels, and links to runbooks, explanations or manufacturers' pages.
+Metadata set on a folder applies to every link under it. A link's own values win, labels merge
+(the link's win), and links accumulate down the tree.
+
+Labels can also come from other datasources. A label lookup is a query whose results become
+labels: a table's columns (an asset database, say) or a series' labels (a Prometheus `_info`
+metric). With a match label, each series gets the row whose column matches it, e.g. each `host`
+gets its own `manufacturer` and `location`; without one, every series gets the first row. A
+series keeps its own labels first, then lookups', then static labels. Lookups are cached for a
+minute, and one that fails becomes a warning on the panel rather than an error.
+
+The metadata reaches results three ways:
+
+- **Field config**: panels show the unit, display name (`${__field.labels.x}` works),
+  description, min/max, threshold colors and clickable links without any panel setup.
+- **Labels** on every series, so alert rules can group and route on them.
+- **Frame metadata** (`meta.custom.objectDatasource`): the link's tree path and full metadata,
+  for transformations and other plugins.
+
+In the datasource settings, **Preview** runs a link's or a lookup's query and shows what comes
+back. It runs as you, in the browser, over the last 6 hours.
+
 ## Development
 
 Requirements: Node 20+, Yarn 1, Go (the version in `go.mod`), and [mage](https://magefile.org).

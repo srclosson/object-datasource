@@ -1,17 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect } from 'react';
 import { css } from '@emotion/css';
-import {
-  DataSourceApi,
-  DataSourceInstanceSettings,
-  GrafanaTheme2,
-  LoadingState,
-  PanelData,
-  getDefaultTimeRange,
-} from '@grafana/data';
-import { DataQuery } from '@grafana/schema';
+import { DataSourceInstanceSettings, GrafanaTheme2 } from '@grafana/data';
 import { Button, InlineField, Input, useStyles2 } from '@grafana/ui';
 import { DataSourcePicker, getDataSourceSrv } from '@grafana/runtime';
-import { QueryLink } from '../types';
+import { Metadata, QueryLink } from '../types';
+import { metadataFor } from '../metadata';
+import { DatasourceQueryEditor } from './DatasourceQueryEditor';
+import { MetadataEditor } from './MetadataEditor';
+import { Preview } from './Preview';
 
 const getStyles = (theme: GrafanaTheme2) => ({
   row: css`
@@ -28,14 +24,14 @@ const getStyles = (theme: GrafanaTheme2) => ({
 
 type Props = {
   value: QueryLink;
+  folders?: Record<string, Metadata>;
   onChange: (value: QueryLink) => void;
   onDelete: () => void;
   className?: string;
 };
 
-export const QueryLinkEditor = ({ value, onChange, onDelete, className }: Props) => {
+export const QueryLinkEditor = ({ value, folders, onChange, onDelete, className }: Props) => {
   const styles = useStyles2(getStyles);
-  const [datasource, setDatasource] = useState<DataSourceApi>();
 
   // A new link starts on the default datasource
   useEffect(() => {
@@ -49,45 +45,8 @@ export const QueryLinkEditor = ({ value, onChange, onDelete, className }: Props)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.uid]);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (value.uid) {
-      getDataSourceSrv()
-        .get(value.uid)
-        .then((ds) => !cancelled && setDatasource(ds))
-        .catch(() => !cancelled && setDatasource(undefined));
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [value.uid]);
-
-  const data: PanelData = useMemo(
-    () => ({ state: LoadingState.NotStarted, series: [], timeRange: getDefaultTimeRange() }),
-    []
-  );
-
-  const renderQueryEditor = () => {
-    if (!datasource) {
-      return null;
-    }
-    const QueryEditor = datasource.components?.QueryEditor;
-    if (!QueryEditor) {
-      return <div>Data source plugin does not export any Query Editor component</div>;
-    }
-    return (
-      <QueryEditor
-        key={datasource.uid}
-        query={value.query}
-        datasource={datasource}
-        onChange={(query: DataQuery) => onChange({ ...value, query })}
-        onRunQuery={() => {}}
-        data={data}
-        range={data.timeRange}
-        queries={[value.query]}
-      />
-    );
-  };
+  // What the link inherits: the metadata of the folders above it, without its own
+  const inherited = metadataFor({ ...value, metadata: undefined }, folders);
 
   return (
     <div className={className}>
@@ -126,7 +85,16 @@ export const QueryLinkEditor = ({ value, onChange, onDelete, className }: Props)
           }
         />
       </InlineField>
-      <div className={styles.editor}>{renderQueryEditor()}</div>
+      <div className={styles.editor}>
+        <DatasourceQueryEditor uid={value.uid} query={value.query} onChange={(query) => onChange({ ...value, query })} />
+        <Preview uid={value.uid} query={value.query} mode="data" />
+      </div>
+      <MetadataEditor
+        label="Metadata"
+        value={value.metadata}
+        inherited={inherited}
+        onChange={(metadata) => onChange({ ...value, metadata })}
+      />
     </div>
   );
 };
