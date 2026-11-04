@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint --cache --ignore-path ./.gitignore --ext .js,.jsx,.ts,.tsx .",
     "lint:fix": "yarn run lint --fix",
-    "server": "docker compose up --build"
+    "deploy:local": "scripts/deploy-local.sh",
+    "deploy:local:full": "scripts/deploy-local.sh --full"
   },
   "author": "Stephanie Closson",
   "license": "Apache-2.0",

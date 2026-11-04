@@ -18,51 +18,51 @@ Query creators write queries in the datasource config like so:
 Query consumers access the data through a tree like heirarchy like so:
 ![Query Selection](https://github.com/srclosson/object-datasource/blob/main/src/img/query_editor_selection.png?raw=true "Query selection")
 
-### Frontend
+## How it runs
 
-1. Install dependencies
+Panels and alert rules store only a reference to a query link (`linkId`, plus its `name`). The
+backend looks the link up in the datasource settings each time a query runs and sends the link's
+query to its target datasource through Grafana's `/api/ds/query`, so editing a link updates every
+panel and alert that uses it.
 
-   ```bash
-   yarn install
-   ```
+The backend authenticates to Grafana's API as a service account:
 
-2. Build plugin in development mode or run in watch mode
+- **Managed (preferred):** with the `externalServiceAccounts` feature toggle and
+  `[auth] managed_service_accounts_enabled = true`, Grafana creates one for the plugin from the
+  `iam` permissions in `plugin.json`.
+- **Pasted:** otherwise, create a service account that can read and query the target
+  datasources, and paste its token into the datasource settings.
 
-   ```bash
-   yarn dev
-   ```
+Queries run as that service account, not as the viewer: anyone who can use this datasource sees
+what its links return. Give the service account only the datasources the links need.
 
-   or
+Dashboard variables in a link's query (`$var`, `${var:format}`) are filled in from the dashboard.
+Alert rules have no dashboard variables, so links used in alerts shouldn't depend on them.
 
-   ```bash
-   yarn watch
-   ```
+## Development
 
-3. Build plugin in production mode
+Requirements: Node 20+, Yarn 1, Go (the version in `go.mod`), and [mage](https://magefile.org).
 
-   ```bash
-   yarn build
-   ```
+```bash
+yarn install
+yarn dev          # build the frontend and rebuild on change
+mage -v           # build the backend for all platforms
+yarn typecheck && yarn lint && yarn test:ci && go test ./pkg/...
+```
 
-### Backend
+### Running it locally
 
-1. Update [Grafana plugin SDK for Go](https://grafana.com/docs/grafana/latest/developers/plugins/backend/grafana-plugin-sdk-for-go/) dependency to the latest minor version:
+The plugin runs in the local `aiden-grafana` container (<http://localhost:3333>), which mounts
+this repo's `dist/`. Start that stack with `../aiden-assistant/scripts/container-up.sh`, then:
 
-   ```bash
-   go get -u github.com/grafana/grafana-plugin-sdk-go
-   ```
+```bash
+yarn deploy:local        # rebuild and restart the plugin's backend (a few seconds)
+yarn deploy:local:full   # also restart Grafana, so browsers load the new frontend
+```
 
-2. Build backend plugin binaries for Linux, Windows and Darwin:
-
-   ```bash
-   mage -v
-   ```
-
-3. List all available Mage targets for additional commands:
-
-   ```bash
-   mage -l
-   ```
+Grafana caches the plugin's `module.js` in browsers by plugin version, which it reads at start-up.
+After a fast deploy, hard-reload the browser to see frontend changes. Don't restart
+`aiden-grafana` by itself: it comes back on a new IP that the services around it don't know.
 
 ## Learn more
 
