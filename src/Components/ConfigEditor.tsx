@@ -1,13 +1,23 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Field, Input, SecretInput } from '@grafana/ui';
 import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
 import { ObjectDataSourceOptions, ObjectSecureJsonData } from '../types';
 import { QueryLinks } from './QueryLinks';
+import { savedNames } from '../tree';
 
 interface Props extends DataSourcePluginOptionsEditorProps<ObjectDataSourceOptions, ObjectSecureJsonData> {}
 
 export const ConfigEditor = ({ options, onOptionsChange }: Props) => {
   const { jsonData, secureJsonFields, secureJsonData } = options;
+
+  // Where each link was at the last save. Grafana bumps the version on save, which moves new
+  // links into their folders and closes everything again.
+  const [saved, setSaved] = useState(() => savedNames(jsonData.queryLinks));
+  useEffect(() => {
+    setSaved(savedNames(options.jsonData.queryLinks));
+    // Only on save; the links change on every edit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options.version]);
 
   return (
     <>
@@ -48,6 +58,8 @@ export const ConfigEditor = ({ options, onOptionsChange }: Props) => {
         />
       </Field>
       <QueryLinks
+        key={options.version}
+        saved={saved}
         value={jsonData.queryLinks || []}
         folders={jsonData.folders}
         onChange={(queryLinks) =>
