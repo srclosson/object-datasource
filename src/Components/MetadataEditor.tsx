@@ -98,6 +98,17 @@ export const MetadataEditor = ({ label, value = {}, inherited = {}, onChange }: 
           <NumberInput value={value.max} placeholder={inheritedNote(inherited.max)} onChange={(max) => set({ max })} />
         </InlineField>
       </InlineFieldRow>
+      <InlineField
+        label="Cache for (s)"
+        labelWidth={LABEL_WIDTH}
+        tooltip="How long results are reused, in seconds. 0 turns caching off, e.g. for live data. Empty uses the folder's or the datasource's setting."
+      >
+        <NumberInput
+          value={value.cacheTtl}
+          placeholder={inheritedNote(inherited.cacheTtl) ?? 'Datasource default'}
+          onChange={(cacheTtl) => set({ cacheTtl })}
+        />
+      </InlineField>
 
       <div className={styles.section}>
         <div className={styles.heading}>Thresholds</div>

@@ -100,7 +100,9 @@ func TestDisplayName(t *testing.T) {
 
 func TestLabelLookupsAreCachedAndFailuresAreWarnings(t *testing.T) {
 	g := newFakeGrafana(t)
-	ds := newTestDatasource(t, g.URL, testToken, decoratedLinks)
+	// With the query cache off, so the second query reaches the source and only the lookup is cached
+	noQueryCache := strings.Replace(decoratedLinks, `"folders"`, `"cache": {"defaultTtl": -1}, "folders"`, 1)
+	ds := newTestDatasource(t, g.URL, testToken, noQueryCache)
 
 	runQuery(t, ds, "A", `{"linkId": "l1"}`)
 	runQuery(t, ds, "A", `{"linkId": "l1"}`)

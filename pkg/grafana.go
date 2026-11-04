@@ -51,7 +51,7 @@ func (g grafanaAPI) target(ctx context.Context) (string, string, error) {
 }
 
 // do sends a request to Grafana's API and returns the status and body
-func (g grafanaAPI) do(ctx context.Context, orgID int64, method, path string, body []byte) (int, []byte, error) {
+func (g grafanaAPI) do(ctx context.Context, orgID int64, method, path string, body []byte, headers ...string) (int, []byte, error) {
 	base, token, err := g.target(ctx)
 	if err != nil {
 		return 0, nil, err
@@ -66,6 +66,9 @@ func (g grafanaAPI) do(ctx context.Context, orgID int64, method, path string, bo
 	if orgID > 0 {
 		req.Header.Set("X-Grafana-Org-Id", strconv.FormatInt(orgID, 10))
 	}
+	for i := 0; i+1 < len(headers); i += 2 {
+		req.Header.Set(headers[i], headers[i+1])
+	}
 	resp, err := g.client.Do(req)
 	if err != nil {
 		return 0, nil, fmt.Errorf("can't reach Grafana's API at %s: %w", base, err)
@@ -79,7 +82,7 @@ func (g grafanaAPI) do(ctx context.Context, orgID int64, method, path string, bo
 }
 
 // query runs one inner query over the time range and returns its response
-func (g grafanaAPI) query(ctx context.Context, orgID int64, model map[string]any, tr backend.TimeRange) (backend.DataResponse, error) {
+func (g grafanaAPI) query(ctx context.Context, orgID int64, model map[string]any, tr backend.TimeRange, fromAlert bool) (backend.DataResponse, error) {
 	body, err := json.Marshal(map[string]any{
 		"queries": []any{model},
 		"from":    strconv.FormatInt(tr.From.UnixMilli(), 10),
@@ -88,7 +91,12 @@ func (g grafanaAPI) query(ctx context.Context, orgID int64, model map[string]any
 	if err != nil {
 		return backend.DataResponse{}, err
 	}
-	status, raw, err := g.do(ctx, orgID, http.MethodPost, "/api/ds/query", body)
+	var headers []string
+	if fromAlert {
+		// So the target datasource treats it as an alert query too
+		headers = []string{backend.FromAlertHeaderName, "true"}
+	}
+	status, raw, err := g.do(ctx, orgID, http.MethodPost, "/api/ds/query", body, headers...)
 	if err != nil {
 		return backend.DataResponse{}, err
 	}

@@ -25,6 +25,7 @@ type Datasource struct {
 	settings *models.Settings
 	grafana  grafanaAPI
 	lookups  lookupCache
+	cache    *queryCache
 }
 
 // NewDatasource creates a datasource instance. Grafana creates a new one whenever the
@@ -37,22 +38,27 @@ func NewDatasource(_ context.Context, s backend.DataSourceInstanceSettings) (ins
 	return &Datasource{
 		settings: settings,
 		grafana:  grafanaAPI{client: newHTTPClient(), settings: settings},
+		cache:    &queryCache{store: newStore(settings.Cache)},
 	}, nil
 }
 
 // Dispose is called before a new instance replaces this one
-func (d *Datasource) Dispose() {}
+func (d *Datasource) Dispose() {
+	_ = d.cache.store.Close()
+}
 
 // QueryData runs each query's link concurrently and returns the responses by RefID
 func (d *Datasource) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
 	response := backend.NewQueryDataResponse()
+	// Alert rules always get fresh data, and the target datasource is told the query is from one
+	fromAlert := req.Headers[backend.FromAlertHeaderName] != ""
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, q := range req.Queries {
 		wg.Add(1)
 		go func(q backend.DataQuery) {
 			defer wg.Done()
-			res := d.query(ctx, req.PluginContext.OrgID, q)
+			res := d.query(ctx, req.PluginContext.OrgID, q, fromAlert)
 			mu.Lock()
 			response.Responses[q.RefID] = res
 			mu.Unlock()
@@ -62,7 +68,7 @@ func (d *Datasource) QueryData(ctx context.Context, req *backend.QueryDataReques
 	return response, nil
 }
 
-func (d *Datasource) query(ctx context.Context, orgID int64, q backend.DataQuery) backend.DataResponse {
+func (d *Datasource) query(ctx context.Context, orgID int64, q backend.DataQuery, fromAlert bool) backend.DataResponse {
 	var oq models.ObjectQuery
 	if err := json.Unmarshal(q.JSON, &oq); err != nil {
 		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("can't read the query: %v", err))
@@ -80,14 +86,17 @@ func (d *Datasource) query(ctx context.Context, orgID int64, q backend.DataQuery
 		return backend.ErrDataResponse(backend.StatusBadRequest, err.Error())
 	}
 	interpolate(model, oq.Variables, link.Datasource().Type)
-	res, err := d.grafana.query(ctx, orgID, model, q.TimeRange)
+	md := d.settings.MetadataFor(link)
+	res, err := d.cache.query(ctx, orgID, model, q.TimeRange, d.settings.CacheTTL(md), fromAlert,
+		func(tr backend.TimeRange) (backend.DataResponse, error) {
+			return d.grafana.query(ctx, orgID, model, tr, fromAlert)
+		})
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusBadGateway, err.Error())
 	}
 	for _, f := range res.Frames {
 		f.RefID = q.RefID
 	}
-	md := d.settings.MetadataFor(link)
 	tables, errs := d.labelTables(ctx, orgID, md.LabelLookups, oq.Variables, q.TimeRange)
 	decorate(res.Frames, link.Name, md, tables, errs)
 	return res
@@ -107,7 +116,9 @@ func innerQuery(link models.QueryLink, q backend.DataQuery) (map[string]any, err
 		return nil, fmt.Errorf("query link %q has no datasource", link.Name)
 	}
 	model["datasource"] = ds
-	model["refId"] = q.RefID
+	// The same for every panel, so panels running the same link share cache entries; the
+	// frames get the panel's own refId afterwards
+	model["refId"] = "A"
 	model["intervalMs"] = q.Interval.Milliseconds()
 	model["maxDataPoints"] = q.MaxDataPoints
 	return model, nil
@@ -163,8 +174,16 @@ func (d *Datasource) CheckHealth(ctx context.Context, req *backend.CheckHealthRe
 		}
 	}
 
+	cache := "query cache off"
+	if ttl := d.settings.CacheTTL(models.Metadata{}); ttl > 0 {
+		if err := d.cache.store.Ping(ctx); err != nil {
+			return fail(fmt.Sprintf("query cache (%s): %v", d.cache.store.Describe(), err))
+		}
+		cache = fmt.Sprintf("query cache %s, %s by default", d.cache.store.Describe(), ttl)
+	}
 	return &backend.CheckHealthResult{
-		Status:  backend.HealthStatusOk,
-		Message: fmt.Sprintf("Connected to Grafana's API; %d query link(s) can reach their datasources", len(d.settings.QueryLinks)),
+		Status: backend.HealthStatusOk,
+		Message: fmt.Sprintf("Connected to Grafana's API; %d query link(s) can reach their datasources; %s",
+			len(d.settings.QueryLinks), cache),
 	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 )
@@ -44,7 +45,24 @@ func datasourceOf(query json.RawMessage, uid string) DataSourceRef {
 type jsonData struct {
 	QueryLinks []QueryLink         `json:"queryLinks,omitempty"`
 	Folders    map[string]Metadata `json:"folders,omitempty"`
+	Cache      CacheSettings       `json:"cache,omitempty"`
 }
+
+// CacheSettings configure the query cache
+type CacheSettings struct {
+	// DefaultTTL is how long results are reused, in seconds, unless a folder or link says
+	// otherwise. Zero uses DefaultCacheTTL; a negative value turns the cache off.
+	DefaultTTL int `json:"defaultTtl,omitempty"`
+	// RedisAddress is host:port of a Redis server to share the cache through. Without one,
+	// each plugin process caches in memory.
+	RedisAddress string `json:"redisAddress,omitempty"`
+	RedisDB      int    `json:"redisDb,omitempty"`
+	// RedisPassword comes from the secure settings
+	RedisPassword string `json:"-"`
+}
+
+// DefaultCacheTTL is how long results are reused, in seconds, when the settings don't say
+const DefaultCacheTTL = 30
 
 // Settings are the datasource instance's settings
 type Settings struct {
@@ -57,6 +75,7 @@ type Settings struct {
 	QueryLinks          []QueryLink
 	// Folders is the metadata of folders in the tree, by path
 	Folders map[string]Metadata
+	Cache   CacheSettings
 }
 
 // LoadSettings reads Settings from the datasource configuration
@@ -67,12 +86,32 @@ func LoadSettings(config backend.DataSourceInstanceSettings) (*Settings, error) 
 			return nil, fmt.Errorf("could not read the datasource settings: %w", err)
 		}
 	}
-	return &Settings{
+	settings := &Settings{
 		GrafanaURL:          strings.TrimRight(strings.TrimSpace(config.URL), "/"),
 		ServiceAccountToken: strings.TrimSpace(config.DecryptedSecureJSONData["serviceAccountToken"]),
 		QueryLinks:          jd.QueryLinks,
 		Folders:             jd.Folders,
-	}, nil
+		Cache:               jd.Cache,
+	}
+	settings.Cache.RedisAddress = strings.TrimSpace(settings.Cache.RedisAddress)
+	settings.Cache.RedisPassword = config.DecryptedSecureJSONData["redisPassword"]
+	return settings, nil
+}
+
+// CacheTTL is how long a link's results are reused: its own or its folders' setting, or the
+// datasource's default. Zero means not cached.
+func (s *Settings) CacheTTL(md Metadata) time.Duration {
+	ttl := s.Cache.DefaultTTL
+	if ttl == 0 {
+		ttl = DefaultCacheTTL
+	}
+	if md.CacheTTL != nil {
+		ttl = *md.CacheTTL
+	}
+	if ttl < 0 {
+		return 0
+	}
+	return time.Duration(ttl) * time.Second
 }
 
 // FindLink returns the query link with this id, or failing that, this name

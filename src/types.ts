@@ -20,6 +20,15 @@ export interface ObjectDataSourceOptions extends DataSourceJsonData {
   queryLinks?: QueryLink[];
   /** Metadata of folders in the tree, by path; links inherit it */
   folders?: Record<string, Metadata>;
+  cache?: CacheSettings;
+}
+
+export interface CacheSettings {
+  /** Seconds results are reused unless a folder or link says otherwise; 0 means 30, negative turns the cache off */
+  defaultTtl?: number;
+  /** host:port of a Redis server to share the cache through; without one, each plugin process caches in memory */
+  redisAddress?: string;
+  redisDb?: number;
 }
 
 /**
@@ -27,6 +36,7 @@ export interface ObjectDataSourceOptions extends DataSourceJsonData {
  */
 export interface ObjectSecureJsonData {
   serviceAccountToken?: string;
+  redisPassword?: string;
 }
 
 export interface QueryLink {
@@ -51,6 +61,8 @@ export interface Metadata {
   thresholds?: Threshold[];
   /** Queries against other datasources whose results become labels */
   labelLookups?: LabelLookup[];
+  /** Seconds results are reused; 0 turns caching off for this node */
+  cacheTtl?: number;
 }
 
 export interface Reference {

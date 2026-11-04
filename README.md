@@ -64,6 +64,27 @@ The metadata reaches results three ways:
 In the datasource settings, **Preview** runs a link's or a lookup's query and shows what comes
 back. It runs as you, in the browser, over the last 6 hours.
 
+## Query cache
+
+Results are cached, so dashboards on popular links come back fast and the sources behind them
+get fewer queries:
+
+- **Where:** in Redis when the settings name one (shared by every Grafana, and kept across
+  plugin restarts), otherwise in each plugin process's memory (up to 64 MB).
+- **How long:** 30 seconds by default, set for the datasource, and per folder or link like
+  other metadata. `0` on a folder or link turns caching off for it, e.g. for live data.
+- **Moving ranges:** a range like "the last hour" is rounded to the cache time, so refreshes
+  within it share one entry. Data can be up to about twice the cache time old. Ranges shorter
+  than ten cache times aren't rounded.
+- **Identical queries at once** (many viewers, or panels on the same link) make one trip to the
+  source.
+- **Alert rules** always query the source, and the source is told the query is from one.
+- **Safety:** a cache failure never fails a query; it goes to the source. Only successful
+  results are cached, and editing a link changes its cache key. Metadata is applied after the
+  cache, so changes to it show at once.
+- **Metrics:** `grafana_object_datasource_cache_requests_total{result}` counts hits, misses,
+  shared queries, bypasses and cache errors.
+
 ## Development
 
 Requirements: Node 20+, Yarn 1, Go (the version in `go.mod`), and [mage](https://magefile.org).

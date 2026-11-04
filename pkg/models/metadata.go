@@ -20,6 +20,8 @@ type Metadata struct {
 	Thresholds []Threshold `json:"thresholds,omitempty"`
 	// LabelLookups add labels from queries against other datasources
 	LabelLookups []LabelLookup `json:"labelLookups,omitempty"`
+	// CacheTTL is how long results are reused, in seconds; 0 turns caching off for the node
+	CacheTTL *int `json:"cacheTtl,omitempty"`
 }
 
 // LabelLookup is a query whose results become labels: a table's columns, or a series' labels.
@@ -52,7 +54,7 @@ type Threshold struct {
 // IsZero reports whether there is no metadata at all
 func (m Metadata) IsZero() bool {
 	return m.Description == "" && m.Unit == "" && m.DisplayName == "" && len(m.Labels) == 0 &&
-		len(m.Links) == 0 && m.Min == nil && m.Max == nil && len(m.Thresholds) == 0 && len(m.LabelLookups) == 0
+		len(m.Links) == 0 && m.Min == nil && m.Max == nil && len(m.Thresholds) == 0 && len(m.LabelLookups) == 0 && m.CacheTTL == nil
 }
 
 // Inherit returns m on top of parent: m's own values win, labels merge with m's winning, and
@@ -76,6 +78,9 @@ func (m Metadata) Inherit(parent Metadata) Metadata {
 	}
 	if len(m.Thresholds) > 0 {
 		out.Thresholds = m.Thresholds
+	}
+	if m.CacheTTL != nil {
+		out.CacheTTL = m.CacheTTL
 	}
 	if len(parent.Labels)+len(m.Labels) > 0 {
 		out.Labels = maps.Clone(parent.Labels)

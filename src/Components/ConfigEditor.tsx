@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Field, Input, SecretInput } from '@grafana/ui';
 import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
-import { ObjectDataSourceOptions, ObjectSecureJsonData } from '../types';
+import { CacheSettings, ObjectDataSourceOptions, ObjectSecureJsonData } from '../types';
 import { QueryLinks } from './QueryLinks';
 import { savedNames } from '../tree';
 
@@ -18,6 +18,9 @@ export const ConfigEditor = ({ options, onOptionsChange }: Props) => {
     // Only on save; the links change on every edit
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options.version]);
+
+  const setCache = (patch: Partial<CacheSettings>) =>
+    onOptionsChange({ ...options, jsonData: { ...jsonData, cache: { ...jsonData.cache, ...patch } } });
 
   return (
     <>
@@ -53,6 +56,53 @@ export const ConfigEditor = ({ options, onOptionsChange }: Props) => {
               ...options,
               secureJsonFields: { ...secureJsonFields, serviceAccountToken: false },
               secureJsonData: { ...secureJsonData, serviceAccountToken: '' },
+            })
+          }
+        />
+      </Field>
+      <h3 className="page-heading">Query cache</h3>
+      <Field
+        label="Cache results for (seconds)"
+        description="How long query results are reused, unless a folder or link says otherwise. Refreshes of a moving range like the last hour share results within this time. Alert rules always get fresh data. Negative turns the cache off."
+      >
+        <Input
+          width={20}
+          type="number"
+          placeholder="30"
+          value={jsonData.cache?.defaultTtl ?? ''}
+          onChange={(e) => {
+            const v = e.currentTarget.value;
+            setCache({ defaultTtl: v === '' ? undefined : Number(v) });
+          }}
+        />
+      </Field>
+      <Field
+        label="Redis address"
+        description="host:port of a Redis server, so the cache survives restarts and is shared by every Grafana. Leave empty to cache in memory."
+      >
+        <Input
+          width={50}
+          placeholder="redis:6379"
+          value={jsonData.cache?.redisAddress ?? ''}
+          onChange={(e) => setCache({ redisAddress: e.currentTarget.value })}
+        />
+      </Field>
+      <Field label="Redis password">
+        <SecretInput
+          width={50}
+          isConfigured={Boolean(secureJsonFields?.redisPassword)}
+          value={secureJsonData?.redisPassword ?? ''}
+          onChange={(e) =>
+            onOptionsChange({
+              ...options,
+              secureJsonData: { ...secureJsonData, redisPassword: e.currentTarget.value },
+            })
+          }
+          onReset={() =>
+            onOptionsChange({
+              ...options,
+              secureJsonFields: { ...secureJsonFields, redisPassword: false },
+              secureJsonData: { ...secureJsonData, redisPassword: '' },
             })
           }
         />

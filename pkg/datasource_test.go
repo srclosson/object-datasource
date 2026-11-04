@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"sync"
 	"strings"
 	"testing"
 	"time"
@@ -21,16 +22,27 @@ const testToken = "test-token"
 // and /api/datasources/uid/<uid> for the uids in known.
 type fakeGrafana struct {
 	*httptest.Server
-	status   int // when set, every request gets this status
+	status   int           // when set, every request gets this status
+	delay    time.Duration // how long /api/ds/query takes
 	known    map[string]bool
+	mu       sync.Mutex
 	requests []map[string]any
 	headers  []http.Header
+}
+
+// queryCount is how many queries reached /api/ds/query
+func (f *fakeGrafana) queryCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.requests)
 }
 
 func newFakeGrafana(t *testing.T) *fakeGrafana {
 	f := &fakeGrafana{known: map[string]bool{"prom": true}}
 	f.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
 		f.headers = append(f.headers, r.Header.Clone())
+		f.mu.Unlock()
 		if f.status != 0 {
 			w.WriteHeader(f.status)
 			_, _ = w.Write([]byte(`{"message":"nope"}`))
@@ -48,7 +60,10 @@ func newFakeGrafana(t *testing.T) *fakeGrafana {
 			if err := json.Unmarshal(raw, &body); err != nil {
 				t.Errorf("bad request body: %v", err)
 			}
+			f.mu.Lock()
 			f.requests = append(f.requests, body)
+			f.mu.Unlock()
+			time.Sleep(f.delay)
 			res := backend.NewQueryDataResponse()
 			for _, q := range body["queries"].([]any) {
 				refID := q.(map[string]any)["refId"].(string)

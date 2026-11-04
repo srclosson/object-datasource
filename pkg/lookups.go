@@ -87,7 +87,7 @@ func (d *Datasource) labelTables(ctx context.Context, orgID int64, lookups []mod
 
 		key, _ := json.Marshal([]any{orgID, model})
 		rows, err := d.lookups.get(string(key), func() ([]map[string]string, error) {
-			res, err := d.grafana.query(ctx, orgID, model, tr)
+			res, err := d.grafana.query(ctx, orgID, model, tr, false)
 			if err != nil {
 				return nil, err
 			}

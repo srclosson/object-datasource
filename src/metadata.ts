@@ -15,7 +15,7 @@ export const inherit = (child: Metadata | undefined, parent: Metadata): Metadata
       out[key] = child[key];
     }
   }
-  for (const key of ['min', 'max'] as const) {
+  for (const key of ['min', 'max', 'cacheTtl'] as const) {
     if (child[key] !== undefined) {
       out[key] = child[key];
     }
