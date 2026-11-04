@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -47,7 +47,7 @@ type ObjectDatasource struct {
 func (d *ObjectDatasource) getInstance(ctx context.Context, pluginCtx backend.PluginContext) (*instanceSettings, error) {
 	backend.Logger.Debug("New datasource instance comming right up!!!", "pluginCtx", pluginCtx.DataSourceInstanceSettings)
 
-	s, err := d.im.Get(pluginCtx)
+	s, err := d.im.Get(ctx, pluginCtx)
 	if err != nil {
 		backend.Logger.Debug("Apparently we have an error here?", "error", err)
 		return nil, err
@@ -118,41 +118,6 @@ func (d *ObjectDatasource) QueryData(ctx context.Context, req *backend.QueryData
 			Error:  err,
 		}
 	}
-	// proxiedRequestJSON, err := json.Marshal(*req)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// backend.Logger.Debug("!!! Got a query !!!", "proxiedRequestJSON", string(proxiedRequestJSON))
-
-	// proxiedRequest, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/ds/query", instance.settings.URL), bytes.NewBuffer([]byte(proxiedRequestJSON)))
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// proxiedRequest.Header.Set("Accept", "application/json")
-	// proxiedRequest.Header.Set("Content-Type", "application/json")
-	// proxiedRequest.Header.Set("Authorization", "Bearer eyJrIjoiNE1KZXB1bGVWRDRpdU9lVWNITVNZTFpXSzExQmppZG0iLCJuIjoiT2JqZWN0RGF0YXNvdXJjZSIsImlkIjoxfQ==")
-	// proxiedResponse, err := instance.httpClient.Do(proxiedRequest)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// defer proxiedResponse.Body.Close() //nolint
-	// proxiedResponseJSON, err := ioutil.ReadAll(proxiedResponse.Body)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// var response backend.QueryDataResponse
-	// err = json.Unmarshal(proxiedResponseJSON, &response)
-
-	// backend.Logger.Debug("proxied response", "json", len(response.Responses))
-
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	return response, nil
 }
 
@@ -197,7 +162,7 @@ func (td *ObjectDatasource) query(ctx context.Context, instance *instanceSetting
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer eyJrIjoiNE1KZXB1bGVWRDRpdU9lVWNITVNZTFpXSzExQmppZG0iLCJuIjoiT2JqZWN0RGF0YXNvdXJjZSIsImlkIjoxfQ==")
+	instance.settings.SetAuthHeader(req)
 	resp, err := instance.httpClient.Do(req)
 	if err != nil {
 		response.Error = err
@@ -205,7 +170,7 @@ func (td *ObjectDatasource) query(ctx context.Context, instance *instanceSetting
 	}
 
 	defer resp.Body.Close() //nolint
-	proxiedResponseJSON, err := ioutil.ReadAll(resp.Body)
+	proxiedResponseJSON, err := io.ReadAll(resp.Body)
 	if err != nil {
 		response.Error = err
 		return response
@@ -268,13 +233,13 @@ func (d *ObjectDatasource) CheckHealth(ctx context.Context, req *backend.CheckHe
 
 	hreq.Header.Set("Accept", "application/json")
 	hreq.Header.Set("Content-Type", "application/json")
-	hreq.Header.Set("Authorization", "Bearer eyJrIjoiNE1KZXB1bGVWRDRpdU9lVWNITVNZTFpXSzExQmppZG0iLCJuIjoiT2JqZWN0RGF0YXNvdXJjZSIsImlkIjoxfQ==")
+	instance.settings.SetAuthHeader(hreq)
 	resp, err := instance.httpClient.Do(hreq)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close() //nolint
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	backend.Logger.Debug(">>>>>>>>>>> Query Body Response <<<<<<<<<<<<<<<", "data", string(data), "err", err)
 
 	if err != nil && resp.StatusCode != 200 {
@@ -295,7 +260,7 @@ type instanceSettings struct {
 	settings   *models.Settings
 }
 
-func newDataSourceInstance(rawSettings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
+func newDataSourceInstance(_ context.Context, rawSettings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
 	settings, err := models.LoadSettings(rawSettings)
 	return &instanceSettings{
 		httpClient: &http.Client{},

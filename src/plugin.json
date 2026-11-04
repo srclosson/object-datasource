@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/grafana/grafana/master/docs/sources/developers/plugins/plugin.schema.json",
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
   "type": "datasource",
   "name": "object-datasource",
   "id": "grafana-object-datasource",
@@ -8,10 +8,10 @@
   "alerting": true,
   "executable": "gpx_object-datasource",
   "info": {
-    "description": "Modeling datasource for oganizaing your data",
+    "description": "Modeling datasource for organizing your data",
     "author": {
       "name": "Stephanie Closson",
-      "url": "https://gihub.com/srclosson"
+      "url": "https://github.com/srclosson"
     },
     "keywords": [
       "model",
@@ -30,7 +30,7 @@
       },
       {
         "name": "License",
-        "url": "https://github.com/srclosson/object-datasource/blob/master/LICENSE"
+        "url": "https://github.com/srclosson/object-datasource/blob/main/LICENSE"
       }
     ],
     "screenshots": [],
@@ -38,7 +38,7 @@
     "updated": "%TODAY%"
   },
   "dependencies": {
-    "grafanaDependency": ">=7.0.0",
+    "grafanaDependency": ">=11.6.0",
     "plugins": []
   }
 }

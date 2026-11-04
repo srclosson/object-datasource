@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { css } from 'emotion';
+import { css } from '@emotion/css';
 import {
   VariableSuggestion,
   DataSourceInstanceSettings,
@@ -8,9 +8,10 @@ import {
   PanelData,
   DataQuery,
   LoadingState,
+  getDefaultTimeRange,
 } from '@grafana/data';
-import { Button, LegacyForms, stylesFactory, DataSourcePicker } from '@grafana/ui';
-import { getLegacyAngularInjector, getDataSourceSrv } from '@grafana/runtime';
+import { Button, LegacyForms, stylesFactory } from '@grafana/ui';
+import { getDataSourceSrv, DataSourcePicker } from '@grafana/runtime';
 const { FormField } = LegacyForms;
 import { QueryLink } from '../types';
 
@@ -85,7 +86,7 @@ export const QueryLinkEditor = (props: Props) => {
     const { value } = props;
     const { query } = value;
     const { datasource } = state;
-    const timeRange = getLegacyAngularInjector().get('timeSrv').timeRange();
+    const timeRange = getDefaultTimeRange();
     const data: PanelData = {
       state: LoadingState.NotStarted,
       series: [],
@@ -174,7 +175,7 @@ export const QueryLinkEditor = (props: Props) => {
           inputEl={
             <DataSourcePicker
               // Uid and value should be always set in the db and so in the items.
-              onChange={(ds) => {
+              onChange={(ds: DataSourceInstanceSettings) => {
                 console.log('new ds', ds);
                 onChange({
                   ...value,
@@ -182,7 +183,7 @@ export const QueryLinkEditor = (props: Props) => {
                   query: {
                     ...value.query,
                     refId: value.name || '',
-                    datasource: ds.name,
+                    datasource: { uid: ds.uid, type: ds.type },
                   },
                 });
                 loadDatasource(ds.uid);

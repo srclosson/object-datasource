@@ -1,13 +1,13 @@
 {
   "name": "grafana-object-datasource",
   "version": "1.0.0",
-  "description": "Modeling datasource for oganizaing your data",
+  "description": "Modeling datasource for organizing your data",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
     "test": "jest --watch --onlyChanged",
     "dev": "webpack -w -c ./.config/webpack/webpack.config.ts --env development",
     "sign": "npx --yes @grafana/sign-plugin@latest",
-    "start": "yarn watch",
+    "start": "yarn dev",
     "test:ci": "jest --passWithNoTests --maxWorkers 4",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --cache --ignore-path ./.gitignore --ext .js,.jsx,.ts,.tsx .",
@@ -17,15 +17,6 @@
   "author": "Stephanie Closson",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@grafana/data": "8.0.0",
-    "@grafana/toolkit": "8.0.0",
-    "@grafana/runtime": "8.0.0",
-    "@grafana/ui": "8.0.0",
-    "@types/lodash": "4.14.168",
-    "@testing-library/react": "14.0.0",
-    "@testing-library/user-event": "13.1.1",
-    "@types/webpack-livereload-plugin": "2.3.6",
-    "tslib": "2.2.0",
     "@babel/core": "^7.21.4",
     "@grafana/eslint-config": "^7.0.0",
     "@grafana/tsconfig": "^2.0.0",
@@ -33,13 +24,24 @@
     "@swc/helpers": "^0.5.0",
     "@swc/jest": "^0.2.26",
     "@testing-library/jest-dom": "6.1.4",
+    "@testing-library/react": "14.0.0",
+    "@testing-library/user-event": "^14.5.0",
     "@types/jest": "^29.5.0",
     "@types/node": "^20.8.7",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
     "@types/react-router-dom": "^5.2.0",
     "@types/testing-library__jest-dom": "5.14.8",
+    "@typescript-eslint/eslint-plugin": "6.18.1",
+    "@typescript-eslint/parser": "6.18.1",
     "copy-webpack-plugin": "^11.0.0",
     "css-loader": "^6.7.3",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "8.8.0",
     "eslint-plugin-deprecation": "^2.0.0",
+    "eslint-plugin-jsdoc": "46.8.2",
+    "eslint-plugin-react": "7.33.2",
+    "eslint-plugin-react-hooks": "4.6.0",
     "eslint-webpack-plugin": "^4.0.1",
     "fork-ts-checker-webpack-plugin": "^8.0.0",
     "glob": "^10.2.7",
@@ -64,20 +66,17 @@
     "webpack-virtual-modules": "^0.6.2"
   },
   "dependencies": {
-    "react-use": "^15.3.4",
     "@emotion/css": "11.10.6",
-    "@grafana/data": "^11.2.2",
-    "@grafana/runtime": "^11.2.2",
-    "@grafana/ui": "^11.2.2",
-    "@grafana/schema": "^11.2.2",
+    "@grafana/data": "^11.6.0",
+    "@grafana/runtime": "^11.6.0",
+    "@grafana/schema": "^11.6.0",
+    "@grafana/ui": "^11.6.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "rxjs": "7.8.1",
     "tslib": "2.5.3"
   },
-  "resolutions": {
-    "rxjs": "6.6.3"
-  },
   "engines": {
-    "node": ">=14"
+    "node": ">=20"
   }
 }

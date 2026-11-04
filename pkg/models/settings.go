@@ -1,9 +1,9 @@
 package models
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -24,8 +24,9 @@ type SettingsIn struct {
 // Settings - all filled from
 type Settings struct {
 	backend.DataSourceInstanceSettings
-	Request       ProxiedDataRequest
-	Authorization string
+	Request ProxiedDataRequest
+	// ServiceAccountToken authenticates calls to Grafana's /api/ds/query
+	ServiceAccountToken string
 }
 
 // LoadSettings will read and validate Settings from the DataSourceConfg
@@ -63,11 +64,14 @@ func LoadSettings(config backend.DataSourceInstanceSettings) (*Settings, error) 
 
 		settings.Request.Queries = append(settings.Request.Queries, json)
 	}
-	settings.Authorization = GetBasicAuthFromUsernameAndPassword(config.BasicAuthUser, config.DecryptedSecureJSONData["basicAuthPassword"])
+	settings.ServiceAccountToken = strings.TrimSpace(config.DecryptedSecureJSONData["serviceAccountToken"])
 
 	return settings, nil
 }
 
-func GetBasicAuthFromUsernameAndPassword(username string, password string) string {
-	return "Basic " + base64.StdEncoding.EncodeToString(([]byte)(strings.TrimSpace(username)+":"+strings.TrimSpace(password)))
+// SetAuthHeader adds the service account token to a request bound for the Grafana API
+func (s *Settings) SetAuthHeader(req *http.Request) {
+	if s.ServiceAccountToken != "" {
+		req.Header.Set("Authorization", "Bearer "+s.ServiceAccountToken)
+	}
 }

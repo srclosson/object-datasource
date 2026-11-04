@@ -2,7 +2,6 @@ import {
   DataSourceInstanceSettings,
   DataQueryRequest,
   DataQueryResponse,
-  DataQueryResponseData,
   PanelPlugin,
   DataQuery,
   DataSourceJsonData,
@@ -15,7 +14,7 @@ import { DataSourceWithBackend, getDataSourceSrv, HealthCheckResult } from '@gra
 import { ObjectDataSourceOptions, ObjectQuery, ObjectPanelType } from './types';
 import { ObjectPanel } from './Components/Panel';
 import { mergeAll } from 'rxjs/operators';
-import { Observable, from } from 'rxjs';
+import { Observable, from, lastValueFrom } from 'rxjs';
 
 interface QueryMapEntry<
   TQuery extends DataQuery = DataQuery,
@@ -84,7 +83,7 @@ export class DataSource extends DataSourceWithBackend<ObjectQuery, ObjectDataSou
             if (isPromise(result)) {
               results.push(result);
             } else {
-              results.push(result.toPromise());
+              results.push(lastValueFrom(result));
             }
           }
           //}

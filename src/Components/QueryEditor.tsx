@@ -3,7 +3,7 @@ import { QueryEditorProps } from '@grafana/data';
 import { DataSource } from '../datasource';
 import { ObjectDataSourceOptions, ObjectQuery, QueryLink } from '../types';
 import { CascaderOption, Cascader } from '@grafana/ui';
-import { css } from 'emotion';
+import { css } from '@emotion/css';
 
 const styles = {
   full: css`
