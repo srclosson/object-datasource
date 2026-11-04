@@ -64,7 +64,7 @@ export class QueryEditor extends PureComponent<Props> {
               (ql: QueryLink) => ql.name && e === ql.name
             );
             if (queryLink && queryLink.query && queryLink.name) {
-              onChange({ ...query, name: queryLink.name, config: queryLink });
+              onChange({ ...query, linkId: queryLink.id, name: queryLink.name });
               onRunQuery();
             } else {
               onChange({ ...query, name: query.name });

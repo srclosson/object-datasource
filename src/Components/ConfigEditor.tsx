@@ -1,46 +1,61 @@
-import React, { PureComponent } from 'react';
-import { DataSourceHttpSettings } from '@grafana/ui';
-import { DataSourcePluginOptionsEditorProps, DataSourceSettings } from '@grafana/data';
+import React from 'react';
+import { Field, Input, SecretInput } from '@grafana/ui';
+import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
 import { ObjectDataSourceOptions, ObjectSecureJsonData } from '../types';
 import { QueryLinks } from './QueryLinks';
 
 interface Props extends DataSourcePluginOptionsEditorProps<ObjectDataSourceOptions, ObjectSecureJsonData> {}
 
-interface State {}
+export const ConfigEditor = ({ options, onOptionsChange }: Props) => {
+  const { jsonData, secureJsonFields, secureJsonData } = options;
 
-export class ConfigEditor extends PureComponent<Props, State> {
-  render() {
-    const { options, onOptionsChange } = this.props;
-    const { jsonData } = options;
-
-    console.log('jsonData', jsonData, options);
-    return (
-      <div className="gf-form-group">
-        <div className="gf-form">
-          <DataSourceHttpSettings
-            defaultUrl="http://localhost:3000"
-            dataSourceConfig={options}
-            showAccessOptions={true}
-            onChange={(val: DataSourceSettings<ObjectDataSourceOptions, ObjectSecureJsonData>) => {
-              console.log('we got updated settings', val);
-              onOptionsChange(val);
-            }}
-          />
-        </div>
-        <QueryLinks
-          value={jsonData.queryLinks || []}
-          onChange={(e) => {
-            console.log('we got e/querylinks', e);
+  return (
+    <>
+      <h3 className="page-heading">Grafana API</h3>
+      <Field
+        label="Grafana URL"
+        description="Where the plugin reaches Grafana's API. Leave empty to use Grafana's root_url."
+      >
+        <Input
+          width={50}
+          placeholder="http://localhost:3000"
+          value={options.url}
+          onChange={(e) => onOptionsChange({ ...options, url: e.currentTarget.value })}
+        />
+      </Field>
+      <Field
+        label="Service account token"
+        description="Used to run query links against other datasources. Leave empty when Grafana gives the plugin a managed service account (the externalServiceAccounts feature)."
+      >
+        <SecretInput
+          width={50}
+          placeholder="glsa_..."
+          isConfigured={Boolean(secureJsonFields?.serviceAccountToken)}
+          value={secureJsonData?.serviceAccountToken ?? ''}
+          onChange={(e) =>
             onOptionsChange({
               ...options,
-              jsonData: {
-                ...options.jsonData,
-                queryLinks: e,
-              },
-            });
-          }}
+              secureJsonData: { ...secureJsonData, serviceAccountToken: e.currentTarget.value },
+            })
+          }
+          onReset={() =>
+            onOptionsChange({
+              ...options,
+              secureJsonFields: { ...secureJsonFields, serviceAccountToken: false },
+              secureJsonData: { ...secureJsonData, serviceAccountToken: '' },
+            })
+          }
         />
-      </div>
-    );
-  }
-}
+      </Field>
+      <QueryLinks
+        value={jsonData.queryLinks || []}
+        onChange={(queryLinks) =>
+          onOptionsChange({
+            ...options,
+            jsonData: { ...jsonData, queryLinks },
+          })
+        }
+      />
+    </>
+  );
+};

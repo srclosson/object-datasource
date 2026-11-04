@@ -124,10 +124,11 @@ export const QueryLinkEditor = (props: Props) => {
       // Got the default datasource. Write out an onchange event
       datasource = await dataSourceSrv.get();
       onChange({
-        name: '',
+        ...props.value,
         uid: datasource.uid,
         query: {
           refId: '',
+          datasource: { uid: datasource.uid, type: datasource.type },
         },
       });
     }

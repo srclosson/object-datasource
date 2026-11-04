@@ -3,22 +3,15 @@ package main
 import (
 	"os"
 
-	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/datasource"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 )
 
 func main() {
-	// Setup the plugin environment
-	backend.SetupPluginEnvironment("grafana-object-datasource")
-
-	// Start listening to requests send from Grafana. This call is blocking so
-	// it wont finish until Grafana shutsdown the process or the plugin choose
-	// to exit close down by itself
-	err := datasource.Serve(newDatasource())
-
-	// Log any error if we could start the plugin.
-	if err != nil {
+	// Start listening to requests sent from Grafana. This call is blocking so
+	// it won't finish until Grafana shuts down the process or the plugin chooses
+	// to exit by itself
+	if err := datasource.Manage("grafana-object-datasource", NewDatasource, datasource.ManageOpts{}); err != nil {
 		log.DefaultLogger.Error(err.Error())
 		os.Exit(1)
 	}

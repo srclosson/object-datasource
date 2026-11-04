@@ -1,274 +1,148 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"time"
+	"net/url"
+	"sync"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
-	"github.com/grafana/grafana-plugin-sdk-go/backend/datasource"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
-	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
-	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/srclosson/object-datasource/pkg/models"
 )
 
-// newDatasource returns datasource.ServeOpts.
-func newDatasource() datasource.ServeOpts {
-	// creates a instance manager for your plugin. The function passed
-	// into `NewInstanceManger` is called when the instance is created
-	// for the first time or when a datasource configuration changed.
-	im := datasource.NewInstanceManager(newDataSourceInstance)
-	ds := &ObjectDatasource{
-		im: im,
-	}
+var (
+	_ backend.QueryDataHandler      = (*Datasource)(nil)
+	_ backend.CheckHealthHandler    = (*Datasource)(nil)
+	_ instancemgmt.InstanceDisposer = (*Datasource)(nil)
+)
 
-	return datasource.ServeOpts{
-		QueryDataHandler:   ds,
-		CheckHealthHandler: ds,
-	}
-}
-
-// ObjectDatasource backend
-// new datasource plugins with an backend.
-type ObjectDatasource struct {
-	// The instance manager can help with lifecycle management
-	// of datasource instances in plugins. It's not a requirements
-	// but a best practice that we recommend that you follow.
-	im instancemgmt.InstanceManager
-
+// Datasource resolves queries that reference query links, and runs each link's query against
+// its target datasource through Grafana's API
+type Datasource struct {
 	settings *models.Settings
+	grafana  grafanaAPI
 }
 
-func (d *ObjectDatasource) getInstance(ctx context.Context, pluginCtx backend.PluginContext) (*instanceSettings, error) {
-	backend.Logger.Debug("New datasource instance comming right up!!!", "pluginCtx", pluginCtx.DataSourceInstanceSettings)
-
-	s, err := d.im.Get(ctx, pluginCtx)
-	if err != nil {
-		backend.Logger.Debug("Apparently we have an error here?", "error", err)
-		return nil, err
-	}
-	instance := s.(*instanceSettings)
-
-	backend.Logger.Debug("Appaarently we have some settings here?", "settings", s)
-
-	return instance, nil
-}
-
-// QueryData handles multiple queries and returns multiple responses.
-// req contains the queries []DataQuery (where each query contains RefID as a unique identifer).
-// The QueryDataResponse contains a map of RefID to the response for each query, and each response
-// contains Frames ([]*Frame).
-func (d *ObjectDatasource) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
-	log.DefaultLogger.Info("QueryData", "request", req)
-
-	// create response struct
-	response := backend.NewQueryDataResponse()
-	instance, err := d.getInstance(ctx, req.PluginContext)
-	if err != nil || instance == nil {
-		return nil, err
-	}
-
-	// loop over queries and execute them individually.
-	for _, q := range req.Queries {
-		//res := d.query(ctx, instance, q)
-
-		var objectQuery models.ObjectDataQuery
-		err := json.Unmarshal(q.JSON, &objectQuery)
-		backend.Logger.Debug("objectQuery", "query", objectQuery)
-		// save the response in a hashmap
-		// based on with RefID as identifier
-		frames := make([]*data.Frame, 0)
-		for _, frameIn := range objectQuery.Response.Data {
-			fields := make([]*data.Field, 0)
-			for _, fieldIn := range frameIn.Fields {
-				backend.Logger.Debug("The labels are", "labels", fieldIn.Labels, "type", fieldIn.TypeInfo.Frame)
-				var field *data.Field
-				switch fieldIn.TypeInfo.Frame {
-				case "time.Time":
-					field = data.NewField(fieldIn.Name, fieldIn.Labels, make([]time.Time, 0))
-				default:
-					field = data.NewField(fieldIn.Name, fieldIn.Labels, make([]float64, 0))
-				}
-
-				//field.Config = fieldIn.State
-				for _, value := range fieldIn.Values {
-					switch fieldIn.TypeInfo.Frame {
-					case "time.Time":
-						v := int64(value.(float64))
-						backend.Logger.Debug("timestamp", "orig", v, "secs", v/1000, "msecs", v%1000)
-						field.Append(time.Unix(v/1000, (v%1000)*1000000))
-					default:
-						field.Append(value.(float64))
-					}
-				}
-				fields = append(fields, field)
-			}
-			frames = append(frames, &data.Frame{
-				Name:   frameIn.Name,
-				Fields: fields,
-			})
-		}
-		response.Responses[q.RefID] = backend.DataResponse{
-			Frames: frames,
-			Error:  err,
-		}
-	}
-	return response, nil
-}
-
-func (td *ObjectDatasource) query(ctx context.Context, instance *instanceSettings, query backend.DataQuery) backend.DataResponse {
-	// Unmarshal the json into our queryModel
-	var innerQuery models.ObjectDataQuery
-
-	response := backend.DataResponse{}
-
-	response.Error = json.Unmarshal(query.JSON, &innerQuery)
-
-	if response.Error != nil {
-		return response
-	}
-
-	innerQuery.Config.Query["intervalMs"] = query.Interval.Milliseconds()
-	innerQuery.Config.Query["maxDataPoints"] = query.MaxDataPoints
-	innerQuery.Config.Query["refId"] = innerQuery.Name
-	innerQuery.Config.Query["limit"] = query.MaxDataPoints
-
-	rawInnerQuery, err := json.Marshal(innerQuery.Config.Query)
-
-	proxiedRequest := models.ProxiedDataRequest{
-		From:    fmt.Sprintf("%d", query.TimeRange.From.UnixNano()/int64(time.Millisecond)),
-		To:      fmt.Sprintf("%d", query.TimeRange.To.UnixNano()/int64(time.Millisecond)),
-		Queries: []json.RawMessage{rawInnerQuery},
-	}
-
-	proxiedRequestJSON, err := json.Marshal(proxiedRequest)
-	if err != nil {
-		response.Error = err
-		return response
-	}
-
-	backend.Logger.Debug("!!! Got a query !!!", "proxiedRequestJSON", string(proxiedRequestJSON))
-
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/ds/query", instance.settings.URL), bytes.NewBuffer([]byte(proxiedRequestJSON)))
-	if err != nil {
-		response.Error = err
-		return response
-	}
-
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-	instance.settings.SetAuthHeader(req)
-	resp, err := instance.httpClient.Do(req)
-	if err != nil {
-		response.Error = err
-		return response
-	}
-
-	defer resp.Body.Close() //nolint
-	proxiedResponseJSON, err := io.ReadAll(resp.Body)
-	if err != nil {
-		response.Error = err
-		return response
-	}
-
-	var proxiedResponse models.ProxiedResponse
-	err = json.Unmarshal(proxiedResponseJSON, &proxiedResponse)
-
-	backend.Logger.Debug("proxied response", "json", len(proxiedResponse.Responses))
-
-	if err != nil {
-		response.Error = err
-		return response
-	}
-
-	for _, dataResponse := range proxiedResponse.Responses {
-		response.Frames = append(response.Frames, dataResponse.Frames...)
-	}
-
-	return response
-}
-
-// CheckHealth handles health checks sent from Grafana to the plugin.
-// The main use case for these health checks is the test button on the
-// datasource configuration page which allows users to verify that
-// a datasource is working as expected.
-func (d *ObjectDatasource) CheckHealth(ctx context.Context, req *backend.CheckHealthRequest) (*backend.CheckHealthResult, error) {
-	var status = backend.HealthStatusOk
-	var message = "Data source is working"
-
-	instance, err := d.getInstance(ctx, req.PluginContext)
+// NewDatasource creates a datasource instance. Grafana creates a new one whenever the
+// datasource's settings change.
+func NewDatasource(_ context.Context, s backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
+	settings, err := models.LoadSettings(s)
 	if err != nil {
 		return nil, err
 	}
-
-	settings, err := models.LoadSettings(*req.PluginContext.DataSourceInstanceSettings)
-	if err != nil {
-		return &backend.CheckHealthResult{
-			Status:  backend.HealthStatusError,
-			Message: err.Error(),
-		}, nil
-	}
-
-	instance.settings = settings
-
-	backend.Logger.Debug(">>>>>>>>>>>>>>>>> We got a health check request", "req", req.PluginContext.DataSourceInstanceSettings, "settings", settings)
-
-	queries, err := json.Marshal(settings.Request)
-	if err != nil {
-		return &backend.CheckHealthResult{
-			Status:  backend.HealthStatusError,
-			Message: err.Error(),
-		}, nil
-	}
-	backend.Logger.Debug(">>>>>>>> Request going out >>>>>>>>>>", "request", string(queries))
-	hreq, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/ds/query", instance.settings.URL), bytes.NewBuffer(queries))
-	if err != nil {
-		return nil, err
-	}
-
-	hreq.Header.Set("Accept", "application/json")
-	hreq.Header.Set("Content-Type", "application/json")
-	instance.settings.SetAuthHeader(hreq)
-	resp, err := instance.httpClient.Do(hreq)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close() //nolint
-	data, err := io.ReadAll(resp.Body)
-	backend.Logger.Debug(">>>>>>>>>>> Query Body Response <<<<<<<<<<<<<<<", "data", string(data), "err", err)
-
-	if err != nil && resp.StatusCode != 200 {
-		return &backend.CheckHealthResult{
-			Status:  backend.HealthStatusError,
-			Message: err.Error(),
-		}, nil
-	}
-
-	return &backend.CheckHealthResult{
-		Status:  status,
-		Message: message,
+	return &Datasource{
+		settings: settings,
+		grafana:  grafanaAPI{client: newHTTPClient(), settings: settings},
 	}, nil
 }
 
-type instanceSettings struct {
-	httpClient *http.Client
-	settings   *models.Settings
+// Dispose is called before a new instance replaces this one
+func (d *Datasource) Dispose() {}
+
+// QueryData runs each query's link concurrently and returns the responses by RefID
+func (d *Datasource) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
+	response := backend.NewQueryDataResponse()
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for _, q := range req.Queries {
+		wg.Add(1)
+		go func(q backend.DataQuery) {
+			defer wg.Done()
+			res := d.query(ctx, req.PluginContext.OrgID, q)
+			mu.Lock()
+			response.Responses[q.RefID] = res
+			mu.Unlock()
+		}(q)
+	}
+	wg.Wait()
+	return response, nil
 }
 
-func newDataSourceInstance(_ context.Context, rawSettings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
-	settings, err := models.LoadSettings(rawSettings)
-	return &instanceSettings{
-		httpClient: &http.Client{},
-		settings:   settings,
-	}, err
+func (d *Datasource) query(ctx context.Context, orgID int64, q backend.DataQuery) backend.DataResponse {
+	var oq models.ObjectQuery
+	if err := json.Unmarshal(q.JSON, &oq); err != nil {
+		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("can't read the query: %v", err))
+	}
+	if oq.LinkID == "" && oq.Name == "" {
+		return backend.ErrDataResponse(backend.StatusBadRequest, "no query link selected")
+	}
+	link, ok := d.settings.FindLink(oq.LinkID, oq.Name)
+	if !ok {
+		return backend.ErrDataResponse(backend.StatusBadRequest,
+			fmt.Sprintf("query link %q no longer exists in the datasource settings", oq.Name))
+	}
+	model, err := innerQuery(link, q)
+	if err != nil {
+		return backend.ErrDataResponse(backend.StatusBadRequest, err.Error())
+	}
+	res, err := d.grafana.query(ctx, orgID, model, q.TimeRange)
+	if err != nil {
+		return backend.ErrDataResponse(backend.StatusBadGateway, err.Error())
+	}
+	for _, f := range res.Frames {
+		f.RefID = q.RefID
+	}
+	return res
 }
 
-func (s *instanceSettings) Dispose() {
-	// Called before creatinga a new instance to allow plugin authors
-	// to cleanup.
+// innerQuery is the link's query as the target datasource expects it, with the fields
+// Grafana's query API owns taken from the outer query
+func innerQuery(link models.QueryLink, q backend.DataQuery) (map[string]any, error) {
+	model := map[string]any{}
+	if len(link.Query) > 0 {
+		if err := json.Unmarshal(link.Query, &model); err != nil {
+			return nil, fmt.Errorf("can't read query link %q: %w", link.Name, err)
+		}
+	}
+	ds := link.Datasource()
+	if ds.UID == "" {
+		return nil, fmt.Errorf("query link %q has no datasource", link.Name)
+	}
+	model["datasource"] = ds
+	model["refId"] = q.RefID
+	model["intervalMs"] = q.Interval.Milliseconds()
+	model["maxDataPoints"] = q.MaxDataPoints
+	return model, nil
+}
+
+// CheckHealth checks that the plugin can authenticate to Grafana's API and read the
+// datasource each query link targets
+func (d *Datasource) CheckHealth(ctx context.Context, req *backend.CheckHealthRequest) (*backend.CheckHealthResult, error) {
+	orgID := req.PluginContext.OrgID
+	fail := func(msg string) (*backend.CheckHealthResult, error) {
+		return &backend.CheckHealthResult{Status: backend.HealthStatusError, Message: msg}, nil
+	}
+
+	status, raw, err := d.grafana.do(ctx, orgID, http.MethodGet, "/api/datasources", nil)
+	if err != nil {
+		return fail(err.Error())
+	}
+	if status != http.StatusOK {
+		return fail(apiError(status, raw).Error())
+	}
+
+	for _, link := range d.settings.QueryLinks {
+		ds := link.Datasource()
+		if ds.UID == "" {
+			return fail(fmt.Sprintf("query link %q has no datasource", link.Name))
+		}
+		status, raw, err := d.grafana.do(ctx, orgID, http.MethodGet, "/api/datasources/uid/"+url.PathEscape(ds.UID), nil)
+		if err != nil {
+			return fail(err.Error())
+		}
+		if status == http.StatusNotFound {
+			return fail(fmt.Sprintf("query link %q targets a datasource that doesn't exist (uid %s)", link.Name, ds.UID))
+		}
+		if status != http.StatusOK {
+			return fail(fmt.Sprintf("query link %q: %v", link.Name, apiError(status, raw)))
+		}
+	}
+
+	return &backend.CheckHealthResult{
+		Status:  backend.HealthStatusOk,
+		Message: fmt.Sprintf("Connected to Grafana's API; %d query link(s) can reach their datasources", len(d.settings.QueryLinks)),
+	}, nil
 }

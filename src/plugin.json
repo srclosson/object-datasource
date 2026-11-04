@@ -40,5 +40,17 @@
   "dependencies": {
     "grafanaDependency": ">=11.6.0",
     "plugins": []
+  },
+  "iam": {
+    "permissions": [
+      {
+        "action": "datasources:query",
+        "scope": "datasources:*"
+      },
+      {
+        "action": "datasources:read",
+        "scope": "datasources:*"
+      }
+    ]
   }
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { css } from '@emotion/css';
 import { Button, stylesFactory, useTheme } from '@grafana/ui';
 import { GrafanaTheme, VariableOrigin, DataLinkBuiltInVars, DataSourceInstanceSettings } from '@grafana/data';
-import { QueryLink } from '../types';
+import { QueryLink, newLinkId } from '../types';
 import { QueryLinkEditor } from './QueryLink';
 
 const getStyles = stylesFactory((theme: GrafanaTheme) => ({
@@ -65,7 +65,8 @@ export const QueryLinks = (props: Props) => {
                 onChange={(newField) => {
                   console.log('we got an onChange in QueryLinks.tsx', newField);
                   const newDataLinks = [...value];
-                  newDataLinks.splice(index, 1, newField);
+                  // Links saved before they had ids get one the first time they're edited
+                  newDataLinks.splice(index, 1, { ...newField, id: newField.id ?? newLinkId() });
                   onChange(newDataLinks);
                 }}
                 onDelete={() => {
@@ -96,6 +97,7 @@ export const QueryLinks = (props: Props) => {
               onChange([
                 ...(value || []),
                 {
+                  id: newLinkId(),
                   query: {
                     refId: '',
                   },

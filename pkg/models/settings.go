@@ -3,75 +3,79 @@ package models
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
-	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 )
 
-type QueryLinkConfigBase struct {
-	Name string  `json:"name,omitempty"`
-	UID  string  `json:"uid,omitempty"`
-	ID   float64 `json:"id,omitempty"`
+// DataSourceRef identifies the datasource a query link runs against
+type DataSourceRef struct {
+	UID  string `json:"uid"`
+	Type string `json:"type,omitempty"`
 }
 
-type SettingsIn struct {
-	QueryLinkConfigBase
-	QueryLinks []map[string]interface{} `json:"queryLinks,omitempty"`
+// QueryLink is a query written once by someone who knows the target datasource, and given a
+// place in the tree by its dot-separated name
+type QueryLink struct {
+	ID    string          `json:"id,omitempty"`
+	Name  string          `json:"name,omitempty"`
+	UID   string          `json:"uid,omitempty"`
+	Query json.RawMessage `json:"query,omitempty"`
 }
 
-// Settings - all filled from
+// Datasource is the target datasource, taken from the link's query and falling back to its uid
+func (l QueryLink) Datasource() DataSourceRef {
+	var q struct {
+		Datasource *DataSourceRef `json:"datasource"`
+	}
+	_ = json.Unmarshal(l.Query, &q)
+	if q.Datasource != nil && q.Datasource.UID != "" {
+		return *q.Datasource
+	}
+	return DataSourceRef{UID: l.UID}
+}
+
+type jsonData struct {
+	QueryLinks []QueryLink `json:"queryLinks,omitempty"`
+}
+
+// Settings are the datasource instance's settings
 type Settings struct {
-	backend.DataSourceInstanceSettings
-	Request ProxiedDataRequest
-	// ServiceAccountToken authenticates calls to Grafana's /api/ds/query
+	// GrafanaURL overrides Grafana's root_url for calls to its API, for when root_url isn't
+	// reachable from the plugin (for example inside a container)
+	GrafanaURL string
+	// ServiceAccountToken is a token pasted into the datasource settings. Used when Grafana
+	// hasn't given the plugin a managed service account.
 	ServiceAccountToken string
+	QueryLinks          []QueryLink
 }
 
-// LoadSettings will read and validate Settings from the DataSourceConfg
+// LoadSettings reads Settings from the datasource configuration
 func LoadSettings(config backend.DataSourceInstanceSettings) (*Settings, error) {
-	settingsIn := &SettingsIn{}
-	settings := &Settings{}
-
-	backend.Logger.Debug("config", "config", config.JSONData)
-
-	if err := json.Unmarshal(config.JSONData, &settingsIn); err != nil {
-		return settings, fmt.Errorf("could not unmarshal DataSourceInfo json: %w", err)
-	}
-
-	settings.URL = config.URL
-	settings.ID = config.ID
-	settings.Name = config.Name
-	settings.User = config.User
-	settings.Database = config.Database
-	settings.BasicAuthEnabled = config.BasicAuthEnabled
-	settings.BasicAuthUser = config.BasicAuthUser
-
-	settings.Request = ProxiedDataRequest{
-		From:    fmt.Sprintf("%d", time.Now().Add(-1*time.Duration(10)*time.Minute).UnixNano()/int64(time.Millisecond)),
-		To:      fmt.Sprintf("%d", time.Now().UnixNano()/int64(time.Millisecond)),
-		Queries: make([]json.RawMessage, 0),
-	}
-
-	for _, queryLink := range settingsIn.QueryLinks {
-		//query := queryLink["query"].(map[string]interface{})
-		json, err := json.Marshal(queryLink["query"])
-		backend.Logger.Debug("Adding query", "json", string(json))
-		if err != nil {
-			return nil, err
+	var jd jsonData
+	if len(config.JSONData) > 0 {
+		if err := json.Unmarshal(config.JSONData, &jd); err != nil {
+			return nil, fmt.Errorf("could not read the datasource settings: %w", err)
 		}
-
-		settings.Request.Queries = append(settings.Request.Queries, json)
 	}
-	settings.ServiceAccountToken = strings.TrimSpace(config.DecryptedSecureJSONData["serviceAccountToken"])
-
-	return settings, nil
+	return &Settings{
+		GrafanaURL:          strings.TrimRight(strings.TrimSpace(config.URL), "/"),
+		ServiceAccountToken: strings.TrimSpace(config.DecryptedSecureJSONData["serviceAccountToken"]),
+		QueryLinks:          jd.QueryLinks,
+	}, nil
 }
 
-// SetAuthHeader adds the service account token to a request bound for the Grafana API
-func (s *Settings) SetAuthHeader(req *http.Request) {
-	if s.ServiceAccountToken != "" {
-		req.Header.Set("Authorization", "Bearer "+s.ServiceAccountToken)
+// FindLink returns the query link with this id, or failing that, this name
+func (s *Settings) FindLink(id, name string) (QueryLink, bool) {
+	for _, l := range s.QueryLinks {
+		if id != "" && l.ID == id {
+			return l, true
+		}
 	}
+	for _, l := range s.QueryLinks {
+		if name != "" && l.Name == name {
+			return l, true
+		}
+	}
+	return QueryLink{}, false
 }
